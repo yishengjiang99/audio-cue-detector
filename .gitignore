@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .DS_Store
 audio_cue_index.json
+*.jsonl
 *.wav
 *.mp3
 *.ogg

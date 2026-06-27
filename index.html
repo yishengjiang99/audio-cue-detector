@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Audio Cue Detector</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel status-panel">
+        <div>
+          <h1>Audio Cue Detector</h1>
+          <p class="subtle">Browser-native advisory detection with Web Audio. No game control, process hooks, memory reads, Python, or Swift.</p>
+        </div>
+        <div class="status-grid">
+          <div><span class="label">Audio</span><strong id="audioState">Locked</strong></div>
+          <div><span class="label">Cues</span><strong id="cueCount">0</strong></div>
+          <div><span class="label">Service</span><strong id="serviceState">Idle</strong></div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel controls">
+          <button id="enableAudio" class="primary">Enable Audio Context</button>
+          <label>Audio input<select id="deviceSelect"></select></label>
+          <label>Cue files<input id="cueFiles" type="file" accept="audio/*" multiple></label>
+          <label>Action map JSON<input id="actionMap" type="file" accept="application/json,.json"></label>
+          <div class="row">
+            <label>Threshold<input id="threshold" type="range" min="0.65" max="0.98" step="0.01" value="0.86"></label>
+            <output id="thresholdValue">0.86</output>
+          </div>
+          <div class="row">
+            <label>Min match<input id="minMatch" type="range" min="48" max="192" step="16" value="80"></label>
+            <output id="minMatchValue">80 ms</output>
+          </div>
+          <div class="button-row">
+            <button id="startService" disabled>Start</button>
+            <button id="stopService" disabled>Stop</button>
+          </div>
+        </aside>
+
+        <section class="panel readout">
+          <div id="decision" class="decision neutral">NEUTRAL</div>
+          <div class="meters">
+            <div><span class="label">Input level</span><meter id="inputLevel" min="0" max="1" value="0"></meter></div>
+            <div><span class="label">Best score</span><meter id="bestScore" min="0" max="1" value="0"></meter></div>
+          </div>
+          <div class="log-header">
+            <h2>Events</h2>
+            <button id="clearLog">Clear</button>
+          </div>
+          <ol id="eventLog" class="event-log"></ol>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -8,17 +8,26 @@ Do not automate or control World of Warcraft gameplay. Do not attach to the game
 
 The allowed direction is a separate advisory process that listens to microphone, system, or remote-device audio and emits human-facing guidance such as `RUN`, `ATTACK`, or `NEUTRAL`.
 
+## Current Direction
+
+The project has been pivoted to a browser-native Web Audio implementation. Do not use Swift or Python for the project.
+
+The app runs as a webpage. The user clicks to enable `AudioContext`, grants browser audio permission, selects a browser-visible audio input, loads local cue audio files, and runs advisory detection in JavaScript.
+
+Browser APIs cannot directly capture macOS output-only devices such as `External Headphones`. To inspect game output audio, the browser must be given a loopback/system-audio input source that appears in `navigator.mediaDevices.enumerateDevices()`.
+
 ## Implemented
 
 The project contains:
 
-- `build_audio_index.py`: scans local loose audio clips and builds numeric spectral fingerprints only.
-- `detect_audio_stream.py`: reads signed 16-bit little-endian mono PCM from stdin in 128-byte chunks.
+- `index.html`: the Web Audio UI.
+- `app.js`: in-browser cue indexing and live detection.
+- `styles.css`: UI styling.
 - `actions.example.json`: maps path/name substrings to advisory actions.
-- `Dockerfile`: packages the detector with Python, NumPy, and ffmpeg.
-- `README.md`: includes local and Docker usage.
+- `PROMPT.md`: continuation prompt for future work.
+- `README.md`: includes local webpage usage.
 
-At 16 kHz, 128 bytes is 64 samples, or 4 ms. Detection accumulates short rolling windows for stable frequency matching and emits JSON events with fields such as `t_stream_ms`, `label`, `action`, `score`, `matched_ms`, and `source`.
+Detection accumulates short rolling Web Audio analysis windows for stable frequency matching and logs events with fields such as time, label, action, and score.
 
 The detector includes cooldown and global cooldown logic to reduce duplicate or tail detections.
 
@@ -38,23 +47,19 @@ Core Blizzard audio appears to live in CASC storage under:
 
 The tool intentionally indexes only ordinary audio files explicitly provided by the user, such as addon sounds or user-exported cue clips. It does not copy or embed audio content.
 
-Local tooling observed during setup:
+Local tooling observed during the Web Audio pivot:
 
-- `ffmpeg`: `/opt/homebrew/bin/ffmpeg`
-- `python3`: `/opt/homebrew/bin/python3`
-- Python `numpy`: available
-- Python `scipy`, `sounddevice`, `soundfile`, `librosa`: not available locally
-- Docker CLI: available, but Docker daemon was not running during verification
+- Node.js: available at `/usr/local/bin/node`
+
+The project should remain a static browser app with no Python, Swift, ffmpeg, or Docker runtime path.
 
 ## Verification Already Run
 
-- Indexed 40 loose addon clips into `/tmp/wow-audio-cues.json`.
-- `python3 -m py_compile build_audio_index.py detect_audio_stream.py` passed.
-- Quiet PCM input produced no detections.
-- `alarmbeep.ogg` detected at 80 ms as `RUN` with score `1.0` and `matched_ms` `64.0`.
-- `Details Horn.ogg` detected at 80 ms as `ATTACK` with score `1.0` and `matched_ms` `64.0`.
+- Static assets were served from localhost.
+- `node --check app.js` passed.
+- `curl` confirmed `index.html`, `app.js`, and `styles.css` are reachable from the local server.
 
-Docker build was not verified locally because the Docker daemon was unavailable.
+Browser automation timed out before visual inspection, so user-gesture audio permission and live input capture still need manual verification in the opened page.
 
 ## GitHub State At Creation
 
@@ -78,8 +83,8 @@ ca9f7907b0442cc02440be7b1c90954c35576f10 Add Dockerized audio cue detector
 
 ## Next Plausible Work
 
-- Verify Docker build when the daemon is running.
-- Add an optional overlay or audio-output notifier that consumes detector JSON events.
-- Add tests with synthetic PCM fixtures.
-- Add a remote-device stream bridge that feeds raw 16 kHz mono `s16le` PCM into stdin.
-- Tune thresholds against real microphone recordings.
+- Verify the webpage in a browser after the user clicks to enable audio.
+- Improve cue-file indexing accuracy.
+- Add export/import of cue fingerprints without embedding audio.
+- Add optional browser overlay/audio cue output.
+- Tune thresholds against real browser-captured loopback audio.

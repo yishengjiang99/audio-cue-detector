@@ -1,88 +1,32 @@
 # Audio Cue Detector
 
-This is a separate advisory detector. It does not attach to World of Warcraft,
-read game memory, send inputs, or redistribute audio. It builds numeric
-fingerprints from local audio clips and detects them from a raw microphone or
-remote-device PCM stream.
+Browser-native advisory audio cue detection using Web Audio. It does not attach
+to World of Warcraft, read game memory, send inputs, or redistribute audio.
 
-## Docker
+## Run
 
-Build the image:
+Serve this folder on localhost:
 
 ```bash
-docker build -t audio-cue-detector .
+node -e "const http=require('http'),fs=require('fs'),path=require('path');const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json'};http.createServer((req,res)=>{const p=path.join(process.cwd(),req.url==='/'?'index.html':decodeURIComponent(req.url));fs.readFile(p,(e,d)=>{if(e){res.writeHead(404);res.end('not found');return}res.writeHead(200,{'content-type':types[path.extname(p)]||'application/octet-stream'});res.end(d)})}).listen(4173,'127.0.0.1',()=>console.log('http://127.0.0.1:4173'))"
 ```
 
-Build an index from a mounted local clip directory:
+Open:
 
-```bash
-docker run --rm \
-  -v "$PWD":/work \
-  -v "/path/to/clips":/clips:ro \
-  audio-cue-detector build_audio_index.py \
-  /clips \
-  --actions /work/actions.example.json \
-  -o /work/audio_cue_index.json
+```text
+http://127.0.0.1:4173
 ```
 
-Detect from raw PCM on stdin:
+Click `Enable Audio Context`, choose a browser-visible audio input, load cue
+audio files, then start detection.
 
-```bash
-ffmpeg -hide_banner -loglevel error -i some-recording.wav \
-  -ac 1 -ar 16000 -f s16le - \
-  | docker run --rm -i -v "$PWD":/work audio-cue-detector \
-      detect_audio_stream.py /work/audio_cue_index.json
-```
-
-## 1. Build an index from loose local clips
-
-The `_retail_` folder mostly contains addons/logs/app files. Core game assets
-live in Blizzard CASC storage under `/Applications/World of Warcraft/Data` and
-need a separate local exporter/listfile workflow if you want exact Blizzard
-clips. This tool intentionally indexes only ordinary audio files you point it
-at, such as addon sounds or your own exported cue clips.
-
-```bash
-cd "/Applications/World of Warcraft/_retail_"
-python3 tools/audio_cue_detector/build_audio_index.py \
-  Interface.before-wowaddons-link/Addons \
-  --actions tools/audio_cue_detector/actions.example.json \
-  -o /tmp/wow-audio-cues.json
-```
-
-The JSON contains paths and numeric feature vectors only.
-
-## 2. Detect from 128-byte frames
-
-The detector reads signed 16-bit little-endian mono PCM from stdin. At 16 kHz,
-128 bytes is 64 samples, or 4 ms. Matching still uses a short rolling window
-because a 4 ms frame alone does not contain enough frequency information for
-reliable identification.
-
-From a prerecorded clip:
-
-```bash
-ffmpeg -hide_banner -loglevel error -i some-recording.wav \
-  -ac 1 -ar 16000 -f s16le - \
-  | python3 tools/audio_cue_detector/detect_audio_stream.py /tmp/wow-audio-cues.json
-```
-
-From macOS microphone or virtual audio device:
-
-```bash
-ffmpeg -f avfoundation -i ":0" -ac 1 -ar 16000 -f s16le - \
-  | python3 tools/audio_cue_detector/detect_audio_stream.py /tmp/wow-audio-cues.json
-```
-
-Use `ffmpeg -f avfoundation -list_devices true -i ""` to find the right input
-device. If the audio is captured on another machine/device, stream or pipe raw
-16 kHz mono s16le PCM into this detector with the same frame size.
+For game-output audio, the browser needs a loopback/system-audio input device.
+macOS output-only devices such as `External Headphones` are not directly
+capturable through Web Audio.
 
 ## Tuning
 
-- `--min-match-ms 64` reduces latency but increases false positives.
-- `--threshold 0.90` is stricter; `0.80` is looser.
-- `--global-cooldown-ms` suppresses tail re-detections from long resonant cues.
-- `--energy-gate` should be raised in a noisy room and lowered for quiet feeds.
-- For arena coaching, map labels to `RUN`, `ATTACK`, or `NEUTRAL` in an actions
-  JSON file rather than deriving instructions from hidden game state.
+- Lower `Threshold` to catch quieter or less exact matches.
+- Raise `Threshold` to reduce false positives.
+- Lower `Min match` to reduce latency.
+- Raise `Min match` for more stable matches.
