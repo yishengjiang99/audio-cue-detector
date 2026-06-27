@@ -1,0 +1,8 @@
+{
+  "alarm": "RUN",
+  "warning": "RUN",
+  "detected-stealth": "RUN",
+  "horn": "ATTACK",
+  "go": "ATTACK",
+  "push": "ATTACK"
+}

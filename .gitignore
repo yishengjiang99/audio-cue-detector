@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+audio_cue_index.json
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.m4a
+*.aac
+*.opus
+*.aiff
+*.aif
+*.caf
