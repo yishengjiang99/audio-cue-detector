@@ -174,4 +174,5 @@ node --check combat-log.js
 node --check bin/audio-cue-coach.js
 ```
 
-See `agent.md` for repository boundaries, safety constraints, and agent workflow.
+See `agent.md` for repository boundaries, safety constraints, remote persistence
+workflow, and agent commit/push expectations.

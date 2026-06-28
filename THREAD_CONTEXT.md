@@ -1,92 +1,69 @@
 # Thread Context
 
-This repository came from a non-botting advisory audio cue detector exploration.
+This repository is a non-botting advisory audio cue detector for WoW Solo Shuffle.
 
 ## Safety Boundary
 
-Do not automate or control World of Warcraft gameplay. Do not attach to the game process, read game memory, inspect packets, use hidden game state, send keystrokes or clicks, or automate rating gain.
+Do not automate or control World of Warcraft gameplay. Do not attach to the game
+process, read game memory, inspect packets, use hidden game state, send keystrokes
+or clicks, or automate rating gain.
 
-The allowed direction is a separate advisory webpage that listens to microphone, loopback/system, or remote-device audio and emits human-facing guidance such as `PUSH`, `PULL`, or `NEUTRAL`.
+The allowed direction is a separate advisory webpage that listens to microphone,
+loopback/system, or remote-device audio and emits human-facing guidance such as
+`PUSH`, `PULL`, or `NEUTRAL`.
 
 ## Current Direction
 
-The project has been pivoted to a browser-native Web Audio implementation. Do not use Swift or Python for the project.
+Browser-native Web Audio implementation only. No Python, Swift, Docker, or ffmpeg
+in the normal runtime path.
 
-The app runs as a webpage. The user clicks to enable `AudioContext`, grants browser audio permission, selects a browser-visible audio input, loads local cue audio files, and runs advisory detection in JavaScript.
-
-Browser APIs cannot directly capture macOS output-only devices such as `External Headphones`. To inspect game output audio, the browser must be given a loopback/system-audio input source that appears in `navigator.mediaDevices.enumerateDevices()`.
+The app runs as a static webpage deployed to GitHub Pages and served locally via
+`npm start` / `bin/audio-cue-coach.js`.
 
 ## Implemented
 
-The project contains:
+- `index.html`: tabbed UI (Live Coach, Cue Library, Analysis Session).
+- `app.js`: mel-spectral matching, waveform/spectrum visualizers, cue library,
+  live recording, fingerprint export/import, combat-log session workflow.
+- `combat-log.js`: WoW combat log parser and timeline alignment helpers.
+- `styles.css`: dark-themed UI.
+- `actions.example.json`: strategy substring map.
+- `bin/audio-cue-coach.js` + `package.json`: local static server.
+- `.github/workflows/pages.yml`: deploy static site on push to `main`.
+- `README.md`, `agent.md`, `PROMPT.md`: user and agent documentation.
 
-- `index.html`: the Web Audio UI.
-- `app.js`: in-browser cue indexing and live detection.
-- `styles.css`: UI styling.
-- `actions.example.json`: maps path/name substrings to advisory strategy labels.
-- `PROMPT.md`: continuation prompt for future work.
-- `README.md`: includes local webpage usage.
+Detection uses rolling Web Audio feature windows with per-cue refractory and
+global action cooldown. User-facing output is `PUSH`, `PULL`, `NEUTRAL`.
 
-Detection accumulates short rolling Web Audio analysis windows for stable frequency matching and logs events with fields such as time, label, action, and strategy score.
+Analysis Sessions require user review before examples enter the cue library.
 
-The detector includes cooldown and global cooldown logic to reduce duplicate or tail detections.
+## GitHub State
 
-The current app normalizes legacy `ATTACK` and `RUN` strategy-map values to `PUSH` and `PULL` for compatibility, but user-facing output should stay on `PUSH`, `PULL`, and `NEUTRAL`.
+- Remote: `https://github.com/yishengjiang99/audio-cue-detector`
+- Default branch: `main`
+- Pages: `https://yishengjiang99.github.io/audio-cue-detector/`
+- Merged PR #1 brought `dockerize-audio-cue-detector` into `main`.
 
-## Local Findings
+## Remote Persistence Policy
 
-Original workspace:
-
-```text
-/Applications/World of Warcraft/_retail_
-```
-
-Core Blizzard audio appears to live in CASC storage under:
-
-```text
-/Applications/World of Warcraft/Data
-```
-
-The tool intentionally indexes only ordinary audio files explicitly provided by the user, such as addon sounds or user-exported cue clips. It does not copy or embed audio content.
-
-Local tooling observed during the Web Audio pivot:
-
-- Node.js: available at `/usr/local/bin/node`
-
-The project should remain a static browser app with no Python, Swift, ffmpeg, or Docker runtime path.
+Agents should commit and push to `origin/main` at reasonable intervals after
+coherent changes, updating relevant docs (`README.md`, `agent.md`,
+`THREAD_CONTEXT.md`, `PROMPT.md`) in the same pass. See `agent.md` for the
+full checklist.
 
 ## Verification Already Run
 
-- Static assets were served from localhost.
-- `node --check app.js` passed.
-- `curl` confirmed `index.html`, `app.js`, and `styles.css` are reachable from the local server.
+- `node --check` on `app.js`, `combat-log.js`, `bin/audio-cue-coach.js`.
+- Local static server serves `index.html`, `app.js`, `styles.css`.
+- GitHub Pages returns 200 for `/` and `/app.js`.
+- GitHub Actions Pages deploy succeeds on push to `main`.
 
-Browser automation timed out before visual inspection, so user-gesture audio permission and live input capture still need manual verification in the opened page.
-
-## GitHub State At Creation
-
-Public repository:
-
-```text
-https://github.com/yishengjiang99/audio-cue-detector
-```
-
-Branch:
-
-```text
-dockerize-audio-cue-detector
-```
-
-Initial commit:
-
-```text
-ca9f7907b0442cc02440be7b1c90954c35576f10 Add Dockerized audio cue detector
-```
+Browser audio permission and live loopback capture still need manual verification
+in the opened page.
 
 ## Next Plausible Work
 
-- Verify the webpage in a browser after the user clicks to enable audio.
-- Improve cue-file indexing accuracy.
-- Add export/import of cue fingerprints without embedding audio.
-- Add optional browser overlay/audio cue output.
-- Tune thresholds against real browser-captured loopback audio.
+- Manual browser verification with BlackHole loopback on macOS.
+- Tune thresholds against real browser-captured arena audio.
+- Improve cue-file indexing accuracy and combat-log alignment heuristics.
+- Optional browser overlay or advisory audio cue output.

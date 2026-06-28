@@ -34,8 +34,34 @@ User-facing actions are **`PUSH`**, **`PULL`**, and **`NEUTRAL`**. Legacy `ATTAC
 - Analysis Session examples require **user review and confirm** — never auto-add to the cue library.
 - Update `THREAD_CONTEXT.md` when pivoting architecture or recording verification state.
 - Use `PROMPT.md` as the continuation spec for new feature work.
-- Keep commits focused with clear messages; push to `origin/main`.
 - Pushes to `main` deploy the static site via `.github/workflows/pages.yml`.
+
+## Remote Persistence (always)
+
+**Persist work to `origin/main` at reasonable intervals.** Do not let large uncommitted
+sessions accumulate locally.
+
+### When to commit and push
+
+- After completing a coherent unit of work (feature slice, bugfix, or doc pass).
+- Before ending a session if there are staged-quality changes.
+- After verification steps pass (`node --check`, local serve, or workflow green).
+- At least once per meaningful agent turn when files changed — never leave completed
+  work only on disk.
+
+### What to update alongside code
+
+| Change type | Update |
+|-------------|--------|
+| User-facing behavior, setup, or URLs | `README.md` |
+| Architecture, safety, git/Pages workflow | `agent.md` (this file) |
+| Implemented state, verification, next steps | `THREAD_CONTEXT.md` |
+| Product goals or feature spec | `PROMPT.md` |
+| Strategy substring examples | `actions.example.json` |
+| Deploy or CI | `.github/workflows/` |
+
+Keep commits focused with clear messages. Push to `origin/main` immediately after
+commit unless the user explicitly asks to hold changes local.
 
 ## Key Files
 
