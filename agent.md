@@ -4,7 +4,8 @@
 
 - Repo path: `/Users/yishengj/audio-cue-detector`
 - Remote: `https://github.com/yishengjiang99/audio-cue-detector`
-- Branch: `dockerize-audio-cue-detector`
+- Branch: `main` (default)
+- GitHub Pages: `https://yishengjiang99.github.io/audio-cue-detector/`
 
 ## Product Boundary
 
@@ -33,7 +34,8 @@ User-facing actions are **`PUSH`**, **`PULL`**, and **`NEUTRAL`**. Legacy `ATTAC
 - Analysis Session examples require **user review and confirm** — never auto-add to the cue library.
 - Update `THREAD_CONTEXT.md` when pivoting architecture or recording verification state.
 - Use `PROMPT.md` as the continuation spec for new feature work.
-- Keep commits focused with clear messages; push to `origin/dockerize-audio-cue-detector` unless branch changes.
+- Keep commits focused with clear messages; push to `origin/main`.
+- Pushes to `main` deploy the static site via `.github/workflows/pages.yml`.
 
 ## Key Files
 
