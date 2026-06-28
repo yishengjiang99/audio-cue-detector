@@ -1,9 +1,13 @@
 __pycache__/
 *.py[cod]
 .DS_Store
+node_modules/
+test-results/
+playwright-report/
 audio_cue_index.json
 *.jsonl
 *.wav
+!tests/fixtures/*.wav
 *.mp3
 *.ogg
 *.flac
