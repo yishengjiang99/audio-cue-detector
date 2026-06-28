@@ -87,6 +87,7 @@ npm start
 node --check app.js
 node --check combat-log.js
 node --check bin/audio-cue-coach.js
+npm run test:e2e
 ```
 
 Browser microphone permission requires manual verification in the opened page.
