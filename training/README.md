@@ -73,6 +73,8 @@ npm run train:youtube:py
 
 ## Import into the coach
 
+Production app: https://yishengjiang99.github.io/audio-cue-detector/
+
 1. Open the app → **Cue Library** → **Import Fingerprints**
 2. Select the JSON from `training/output/`
 3. Review labels/actions; tune threshold on **Live Coach**

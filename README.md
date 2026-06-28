@@ -1,5 +1,7 @@
 # Solo Shuffle Audio Coach
 
+**Production:** https://yishengjiang99.github.io/audio-cue-detector/
+
 Browser-native advisory audio cue matching using Web Audio. It helps a human
 player react to user-provided cues with `PUSH`, `PULL`, or `NEUTRAL`
 recommendations. It does not attach to World of Warcraft, read game memory,
