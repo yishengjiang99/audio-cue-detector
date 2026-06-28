@@ -11,16 +11,30 @@ test.beforeEach(async ({ page }) => {
 
 test("page loads with title and NEUTRAL decision", async ({ page }) => {
   await expect(page).toHaveTitle("Solo Shuffle Audio Coach");
-  await expect(page.locator("h1")).toHaveText("Solo Shuffle Audio Coach");
+  await expect(page.locator(".hero h1")).toContainText("2400");
+  await expect(page.locator("#heroStart")).toBeVisible();
   await expect(page.locator("#decision")).toHaveText("NEUTRAL");
   await expect(page.locator("#decision")).toHaveClass(/neutral/);
+});
+
+test("hero Start scrolls to visualizers and chooses microphone", async ({ page }) => {
+  await page.locator("#heroStart").click();
+  await expect(page.locator("#microphoneState")).toHaveText("Fake Test Microphone", {
+    timeout: 10_000,
+  });
+  await expect(page.locator("#tab-coach")).toHaveClass(/active/);
+  const vizBox = await page.locator("#visualizers").boundingBox();
+  const viewport = page.viewportSize();
+  expect(vizBox).toBeTruthy();
+  expect(vizBox.y).toBeLessThan(viewport.height);
+  expect(vizBox.y).toBeGreaterThan(-20);
 });
 
 test("disclaimer and microphone-only notice are visible", async ({ page }) => {
   const disclaimer = page.locator(".disclaimer");
   await expect(disclaimer).toBeVisible();
   await expect(disclaimer).toContainText("Advisory only — fair play preserved.");
-  await expect(disclaimer).toContainText("never automates gameplay");
+  await expect(disclaimer).toContainText(/never automates gameplay/i);
 
   const micNotice = page.locator(".notice.mic-help");
   await expect(micNotice).toBeVisible();

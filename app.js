@@ -109,7 +109,7 @@ const el = Object.fromEntries(
     "recordLabel", "recordAction", "recordNotes", "confirmRecord",
     "proposalDialog", "proposalLabel", "proposalAction", "proposalStart",
     "proposalEnd", "proposalDirection", "proposalNotes", "playProposal",
-    "confirmProposal",
+    "confirmProposal", "heroStart", "visualizers",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -877,20 +877,41 @@ async function confirmProposal() {
   syncWorkletCues();
 }
 
-function setupTabs() {
-  document.querySelectorAll(".tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach((btn) => {
-        btn.classList.toggle("active", btn === tab);
-        btn.setAttribute("aria-selected", btn === tab ? "true" : "false");
-      });
-      document.querySelectorAll(".tab-panel").forEach((panel) => {
-        panel.classList.toggle("active", panel.id === `tab-${tab.dataset.tab}`);
-      });
-    });
+function activateTab(tabName) {
+  document.querySelectorAll(".tab").forEach((btn) => {
+    const active = btn.dataset.tab === tabName;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `tab-${tabName}`);
   });
 }
 
+function scrollToVisualizers() {
+  el.visualizers?.scrollIntoView({ behavior: "instant", block: "center" });
+}
+
+async function beginFromHero() {
+  activateTab("coach");
+  try {
+    if (!state.microphoneReady) await chooseMicrophone();
+    if (!el.startService.disabled) await start();
+  } catch {
+    // Mic permission denied — still scroll user into the coach readout.
+  }
+  window.requestAnimationFrame(() => scrollToVisualizers());
+}
+
+function setupTabs() {
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+  });
+}
+
+el.heroStart?.addEventListener("click", () => {
+  beginFromHero();
+});
 el.chooseMicrophone.addEventListener("click", () => {
   chooseMicrophone().catch(() => {});
 });

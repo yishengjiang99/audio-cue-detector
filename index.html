@@ -8,11 +8,55 @@
   </head>
   <body>
     <main class="shell">
-      <section class="panel status-panel">
-        <div>
-          <h1>Solo Shuffle Audio Coach</h1>
-          <p class="subtle">Browser-native advisory cue matching for human decisions. No game control, process hooks, memory reads, packet inspection, or hidden state inference. <a class="prod-link" href="https://yishengjiang99.github.io/audio-cue-detector/">Production</a></p>
+      <section class="hero panel">
+        <div class="hero-main">
+          <p class="hero-eyebrow">Solo Shuffle Audio Coach · Midnight Arena</p>
+          <h1>Hear the moment.<br><span class="hero-accent">Hit 2400.</span></h1>
+          <p class="hero-lead">
+            At high MMR, rounds are decided in seconds — trinkets, CC chains, and wincon windows you
+            <em>heard</em> but reacted to a beat late. This coach listens through your microphone, matches
+            arena audio against <strong>your</strong> labeled cues, and calls <strong>PUSH</strong> or
+            <strong>PULL</strong> so you train faster reactions without automating a single input.
+          </p>
+          <div class="hero-cta-row">
+            <button id="heroStart" type="button" class="primary hero-cta">Start Live Coach</button>
+            <a class="hero-secondary" href="#how-it-works">How it works</a>
+          </div>
+          <div class="hero-pills">
+            <span class="pill push">PUSH — commit pressure</span>
+            <span class="pill pull">PULL — reset &amp; kite</span>
+            <span class="pill neutral">NEUTRAL — hold</span>
+          </div>
         </div>
+        <aside class="hero-aside">
+          <h2 class="hero-aside-title">The 2400 difference</h2>
+          <ul class="hero-list">
+            <li><strong>Timing beats theory.</strong> Shuffle is about recognizing audible cooldowns and CC before you see the UI flash.</li>
+            <li><strong>Your library, your habits.</strong> Import fingerprints from VODs, combat logs, or mic recordings — only cues you trust.</li>
+            <li><strong>Human-only.</strong> Advisory tones and on-screen calls. No bots, memory reads, or hidden state.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section id="how-it-works" class="how-it-works">
+        <article class="how-card panel">
+          <span class="how-step">1</span>
+          <h2>Build cue fingerprints</h2>
+          <p>Label short audio clips from arena VODs, Analysis Sessions, or live mic captures. Map sounds to PUSH, PULL, or NEUTRAL.</p>
+        </article>
+        <article class="how-card panel">
+          <span class="how-step">2</span>
+          <h2>Choose your microphone</h2>
+          <p>Grant mic access and point it at your speakers or open headphones. The coach hears room audio — no loopback hacks.</p>
+        </article>
+        <article class="how-card panel">
+          <span class="how-step">3</span>
+          <h2>Run Live Coach</h2>
+          <p>An AudioWorklet analyzes every frame, posts verdicts to the main thread, and queues advisory tones when a cue matches.</p>
+        </article>
+      </section>
+
+      <section class="panel status-panel compact-status">
         <div class="status-grid">
           <div><span class="label">Audio</span><strong id="audioState">Locked</strong></div>
           <div><span class="label">Microphone</span><strong id="microphoneState">Not chosen</strong></div>
@@ -23,7 +67,7 @@
 
       <div class="disclaimer panel">
         <strong>Advisory only — fair play preserved.</strong>
-        This tool coaches human decisions from your microphone and user-provided examples. It never automates gameplay, sends inputs, or reads game memory. Loopback or system output capture is not supported.
+        Coaches human decisions from your microphone and user-provided examples. Never automates gameplay or reads game memory.
       </div>
 
       <nav class="tabs" role="tablist">
@@ -71,7 +115,7 @@
 
           <section class="panel readout">
             <div id="decision" class="decision neutral">NEUTRAL</div>
-            <div class="visualizers">
+            <div id="visualizers" class="visualizers">
               <div class="viz-card">
                 <span class="label">Waveform</span>
                 <canvas id="waveformCanvas" width="640" height="96"></canvas>
