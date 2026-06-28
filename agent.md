@@ -24,7 +24,8 @@ User-facing actions are **`PUSH`**, **`PULL`**, and **`NEUTRAL`**. Legacy `ATTAC
 
 - Static webpage: `index.html`, `app.js`, `styles.css`, `combat-log.js`
 - Local dev server: `bin/audio-cue-coach.js` via `npm start` (`package.json`)
-- No Python, Swift, Docker, or ffmpeg in the normal runtime path
+- No Python, Swift, Docker, or ffmpeg in the **browser runtime** path
+- Optional offline trainers under `training/` may use Node, Python, `yt-dlp`, and `ffmpeg`
 
 ## Required Workflow
 
@@ -75,6 +76,7 @@ commit unless the user explicitly asks to hold changes local.
 | `bin/audio-cue-coach.js` | Node static file server for local dev |
 | `PROMPT.md` | Product/architecture continuation prompt |
 | `README.md` | User-facing setup and usage |
+| `training/` | Offline YouTube VOD fingerprint trainers (Node + Python) |
 
 ## Run & Verify
 

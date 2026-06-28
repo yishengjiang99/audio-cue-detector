@@ -17,6 +17,7 @@ combat-log.js       WoW combat log parser and alignment helpers
 styles.css          Dark-themed UI styles
 actions.example.json  Example strategy substring map
 bin/audio-cue-coach.js  Local static file server
+training/           Optional Node.js / Python YouTube fingerprint trainers
 package.json        npm start / audio-cue-coach bin entry
 agent.md            Contributor and agent workflow notes
 ```
@@ -128,6 +129,27 @@ example.
 
 Do not datamine, reverse engineer, parse CASC assets, or bundle Blizzard/game
 audio. Fingerprints store only user-generated numeric features and labels.
+
+## YouTube Training (Node.js / Python, optional)
+
+Build cue fingerprints from labeled segments in arena YouTube VODs — offline
+only, not part of the live browser runtime.
+
+Example VOD: [THE 3v3 GRIND BEGINS! - Midnight Season 1 Arena](https://www.youtube.com/watch?v=H6SrKEvYOKE)
+
+1. Copy `training/sources.example.json` → `training/sources.json` and edit
+   segment timestamps / `PUSH` `PULL` `NEUTRAL` labels.
+2. Install `yt-dlp` and `ffmpeg`.
+3. Run either trainer:
+
+```bash
+npm run train:youtube          # Node.js
+npm run train:youtube:py       # Python (calls Node for fingerprints)
+```
+
+4. Import `training/output/fingerprints-*.json` in **Cue Library**.
+
+See `training/README.md` for full workflow and data boundaries.
 
 ## Strategy Map
 

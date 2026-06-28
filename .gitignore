@@ -4,6 +4,9 @@ __pycache__/
 node_modules/
 test-results/
 playwright-report/
+training/downloads/
+training/output/
+training/sources.json
 audio_cue_index.json
 *.jsonl
 *.wav

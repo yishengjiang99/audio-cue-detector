@@ -1,0 +1,3 @@
+# Optional Python training orchestrator (training/youtube_train.py).
+# Uses stdlib only; fingerprints are computed via Node + audio-dsp.js.
+# External binaries required on PATH: yt-dlp, ffmpeg, node

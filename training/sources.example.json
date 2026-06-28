@@ -1,0 +1,32 @@
+{
+  "sources": [
+    {
+      "url": "https://www.youtube.com/watch?v=H6SrKEvYOKE",
+      "title": "THE 3v3 GRIND BEGINS! - Midnight Season 1 Arena",
+      "notes": "Example Midnight Season 1 arena VOD for offline fingerprint training. Label segments you hear clearly; adjust timestamps after listening.",
+      "segments": [
+        {
+          "start": 45.0,
+          "end": 46.2,
+          "label": "arena_gate_open_pressure",
+          "action": "PUSH",
+          "notes": "Example: commit when gate opens and team stacks"
+        },
+        {
+          "start": 128.5,
+          "end": 130.0,
+          "label": "defensive_cooldown_reset",
+          "action": "PULL",
+          "notes": "Example: kite or line when defensive window is spent"
+        },
+        {
+          "start": 210.0,
+          "end": 211.5,
+          "label": "unclear_trash_audio",
+          "action": "NEUTRAL",
+          "notes": "Discard or relabel if not a reliable cue"
+        }
+      ]
+    }
+  ]
+}

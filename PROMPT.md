@@ -72,6 +72,23 @@ Support **Analysis Sessions** that let users rapidly build high-quality labeled 
 
 This feature should feel like a natural extension of the existing “Record Example from Live” flow, but scaled up for entire sessions/fights.
 
+## YouTube VOD Training (Node.js / Python, offline)
+
+Support an **optional offline training pipeline** (not browser runtime) for building fingerprint libraries from labeled YouTube arena footage.
+
+**Example source**: [THE 3v3 GRIND BEGINS! - Midnight Season 1 Arena](https://www.youtube.com/watch?v=H6SrKEvYOKE)
+
+**Core flow**:
+- User maintains a manifest (`training/sources.json`) of YouTube URLs plus labeled time ranges (`start`, `end`, `label`, `action`).
+- Node trainer (`training/youtube-train.mjs`) or Python trainer (`training/youtube_train.py`) downloads audio via `yt-dlp`, slices with `ffmpeg`, extracts the same mel fingerprints as `audio-dsp.js`.
+- Output JSON (features + labels only) imports into the browser cue library.
+
+**Constraints**:
+- Downloaded audio stays gitignored under `training/downloads/`.
+- Never commit or redistribute raw copyrighted VOD audio.
+- User labels and review remain required; training does not auto-infer fair-play actions from video alone.
+- Browser app remains microphone-only for live coaching.
+
 ## Safety & Fair Play Constraints
 
 - No WoW process interaction, input injection, memory/packet inspection, or binary access.

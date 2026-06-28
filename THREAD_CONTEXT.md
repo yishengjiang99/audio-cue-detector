@@ -35,6 +35,7 @@ clicks **Choose Microphone**, loopback/virtual devices are filtered out.
 - `actions.example.json`: strategy substring map.
 - `bin/audio-cue-coach.js` + `package.json`: local static server.
 - `.github/workflows/pages.yml`: deploy static site on push to `main`.
+- `training/`: optional Node.js / Python YouTube VOD fingerprint trainers.
 - `README.md`, `agent.md`, `PROMPT.md`: user and agent documentation.
 
 Detection uses rolling Web Audio feature windows with per-cue refractory and
