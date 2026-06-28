@@ -173,7 +173,8 @@ normalized to `PUSH` and `PULL`.
 - Lower **Threshold** to catch quieter or less exact matches.
 - Raise **Threshold** to reduce false positives in noisy arena audio.
 - Lower **Min match** to reduce latency; raise it for stabler matches.
-- **Refractory** prevents the same cue from re-firing immediately.
+- **Refractory** spaces out repeated detections (currently a global cooldown across
+  all cues; per-cue refractory is planned).
 - **Global cooldown** spaces out repeated `PUSH` or `PULL` recommendations
   across different cues.
 - Build a focused library: enemy cooldowns → `PULL`, go windows → `PUSH`,
@@ -183,10 +184,15 @@ normalized to `PUSH` and `PULL`.
 
 - Live input is microphone-only; game audio must reach the mic acoustically or via speaker playback.
 - Matching is interpretable spectral similarity, not a full ML classifier.
-- Combat-log alignment is manual/semi-automatic; clock drift may require offset
-  tweaks.
+- Default threshold (`0.86`) is untuned — expect to adjust for your room, speakers, and mic.
+- Cue library is in-memory only; reload clears cues unless you re-import fingerprints.
+- Detection has not been validated in real arena conditions; e2e tests use a mocked mic.
+- Highest-scoring cue wins with no margin check when PUSH and PULL cues score similarly.
+- Combat-log alignment is manual/semi-automatic; clock drift may require offset tweaks.
 - Stereo/position metadata is supplementary and approximate.
 - Offline-capable after the page loads; no server required for normal use.
+
+See `THREAD_CONTEXT.md` for the full gap assessment and prioritized roadmap.
 
 ## Development
 
