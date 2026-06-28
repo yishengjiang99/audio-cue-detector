@@ -6,10 +6,13 @@ import {
   buildAudioEnvelope,
 } from "./combat-log.js";
 
+const LOOPBACK_DEVICE_PATTERN = /loopback|blackhole|soundflower|vb-audio|virtual|cable output|stereo mix|what u hear|aggregate device|multi[- ]output|monitor of/i;
+
 const state = {
   audioContext: null,
   analyser: null,
   mediaStream: null,
+  microphoneReady: false,
   source: null,
   raf: 0,
   cues: [],
@@ -43,7 +46,8 @@ const state = {
 
 const el = Object.fromEntries(
   [
-    "audioState", "cueCount", "serviceState", "enableAudio", "deviceSelect",
+    "audioState", "cueCount", "serviceState", "chooseMicrophone", "deviceSelect",
+    "microphoneState",
     "cueFiles", "actionMap", "threshold", "thresholdValue", "minMatch",
     "minMatchValue", "refractory", "refractoryValue", "globalCooldown",
     "globalCooldownValue", "startService", "stopService", "decision",
@@ -89,23 +93,112 @@ function inferAction(name) {
   return "NEUTRAL";
 }
 
+function isLoopbackDeviceLabel(label) {
+  return LOOPBACK_DEVICE_PATTERN.test(String(label || ""));
+}
+
+function isMicrophoneDevice(device) {
+  return device.kind === "audioinput" && !isLoopbackDeviceLabel(device.label);
+}
+
+function microphoneConstraints(deviceId) {
+  return {
+    audio: {
+      deviceId: deviceId ? { exact: deviceId } : undefined,
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: 1,
+    },
+  };
+}
+
 async function ensureAudioContext() {
   if (!state.audioContext) state.audioContext = new AudioContext({ sampleRate: 16000 });
   if (state.audioContext.state !== "running") await state.audioContext.resume();
   el.audioState.textContent = state.audioContext.state;
-  await refreshDevices();
   updateControlStates();
 }
 
-async function refreshDevices() {
+function setMicrophoneState(text) {
+  el.microphoneState.textContent = text;
+}
+
+async function refreshDevices(preferredDeviceId = "") {
   const devices = await navigator.mediaDevices.enumerateDevices();
-  const inputs = devices.filter((device) => device.kind === "audioinput");
-  el.deviceSelect.replaceChildren(...inputs.map((device, index) => {
+  const microphones = devices.filter(isMicrophoneDevice);
+  const previous = preferredDeviceId || el.deviceSelect.value;
+
+  el.deviceSelect.replaceChildren();
+  if (!microphones.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No microphones found";
+    el.deviceSelect.append(option);
+    return;
+  }
+
+  for (const [index, device] of microphones.entries()) {
     const option = document.createElement("option");
     option.value = device.deviceId;
-    option.textContent = device.label || `Audio input ${index + 1}`;
-    return option;
-  }));
+    option.textContent = device.label || `Microphone ${index + 1}`;
+    el.deviceSelect.append(option);
+  }
+
+  const selected = microphones.find((device) => device.deviceId === previous);
+  el.deviceSelect.value = selected?.deviceId || microphones[0].deviceId;
+}
+
+async function chooseMicrophone() {
+  await ensureAudioContext();
+  setMicrophoneState("Requesting access…");
+
+  let probeStream = null;
+  try {
+    if (!el.deviceSelect.options.length || !el.deviceSelect.value) {
+      probeStream = await navigator.mediaDevices.getUserMedia(microphoneConstraints());
+      probeStream.getTracks().forEach((track) => track.stop());
+      probeStream = null;
+      await refreshDevices();
+    }
+
+    const deviceId = el.deviceSelect.value;
+    if (!deviceId) {
+      setMicrophoneState("No microphone available");
+      state.microphoneReady = false;
+      updateControlStates();
+      return;
+    }
+
+    state.mediaStream?.getTracks().forEach((track) => track.stop());
+    if (state.analyser) stop();
+
+    state.mediaStream = await navigator.mediaDevices.getUserMedia(microphoneConstraints(deviceId));
+    state.microphoneReady = true;
+    setMicrophoneState(el.deviceSelect.selectedOptions[0]?.textContent || "Microphone ready");
+    updateControlStates();
+  } catch (error) {
+    state.microphoneReady = false;
+    setMicrophoneState("Microphone access denied");
+    setService("Idle");
+    updateControlStates();
+    throw error;
+  } finally {
+    probeStream?.getTracks().forEach((track) => track.stop());
+  }
+}
+
+async function getMicrophoneStream() {
+  if (!state.microphoneReady || !state.mediaStream) {
+    throw new Error("Choose a microphone before starting audio capture.");
+  }
+  const deviceId = el.deviceSelect.value;
+  const [track] = state.mediaStream.getAudioTracks();
+  if (track?.getSettings().deviceId === deviceId && track.readyState === "live") {
+    return state.mediaStream;
+  }
+  await chooseMicrophone();
+  return state.mediaStream;
 }
 
 function hzToMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
@@ -378,17 +471,8 @@ function tick() {
 
 async function start() {
   await ensureAudioContext();
-  state.mediaStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      deviceId: el.deviceSelect.value ? { exact: el.deviceSelect.value } : undefined,
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-      channelCount: 2,
-      sampleRate: 16000,
-    },
-  });
-  state.source = state.audioContext.createMediaStreamSource(state.mediaStream);
+  const stream = await getMicrophoneStream();
+  state.source = state.audioContext.createMediaStreamSource(stream);
   state.analyser = state.audioContext.createAnalyser();
   state.analyser.fftSize = 512;
   state.analyser.smoothingTimeConstant = 0.1;
@@ -402,8 +486,6 @@ async function start() {
 
 function stop() {
   cancelAnimationFrame(state.raf);
-  state.mediaStream?.getTracks().forEach((track) => track.stop());
-  state.mediaStream = null;
   state.source = null;
   state.analyser = null;
   state.featureHistory = [];
@@ -420,9 +502,9 @@ function stop() {
 function updateControlStates() {
   const hasAudio = Boolean(state.audioContext);
   const hasCues = state.cues.length > 0;
-  const hasDevice = el.deviceSelect.options.length > 0;
-  el.startService.disabled = !(hasAudio && hasCues && hasDevice) || Boolean(state.analyser);
-  el.startSession.disabled = !hasAudio || !hasDevice || Boolean(state.session.recorder);
+  const hasMicrophone = state.microphoneReady && Boolean(el.deviceSelect.value);
+  el.startService.disabled = !(hasAudio && hasCues && hasMicrophone) || Boolean(state.analyser);
+  el.startSession.disabled = !hasMicrophone || Boolean(state.session.recorder);
   el.stopSession.disabled = !state.session.recorder;
   el.suggestOffset.disabled = !state.session.audioBuffer;
   el.generateProposals.disabled = !(state.session.audioBuffer && state.session.events.length);
@@ -594,15 +676,7 @@ async function loadSessionAudioFile(file) {
 
 async function startSessionRecording() {
   await ensureAudioContext();
-  const stream = state.mediaStream || await navigator.mediaDevices.getUserMedia({
-    audio: {
-      deviceId: el.deviceSelect.value ? { exact: el.deviceSelect.value } : undefined,
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-      channelCount: 2,
-    },
-  });
+  const stream = await getMicrophoneStream();
   state.session.chunks = [];
   state.session.recorder = new MediaRecorder(stream);
   state.session.recorder.ondataavailable = (event) => {
@@ -836,7 +910,14 @@ function setupTabs() {
   });
 }
 
-el.enableAudio.addEventListener("click", ensureAudioContext);
+el.chooseMicrophone.addEventListener("click", () => {
+  chooseMicrophone().catch(() => {});
+});
+el.deviceSelect.addEventListener("change", () => {
+  state.microphoneReady = false;
+  setMicrophoneState("Click Choose Microphone");
+  updateControlStates();
+});
 el.cueFiles.addEventListener("change", (event) => loadCueFiles([...event.target.files]));
 el.actionMap.addEventListener("change", async (event) => {
   const [file] = event.target.files;
@@ -919,6 +1000,11 @@ setupTabs();
 
 if (!navigator.mediaDevices || !window.AudioContext) {
   setService("Unsupported");
+  setMicrophoneState("Unsupported");
 } else {
-  navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
+  refreshDevices().catch(() => {});
+  setMicrophoneState("Click Choose Microphone");
+  navigator.mediaDevices.addEventListener("devicechange", () => {
+    refreshDevices().catch(() => {});
+  });
 }

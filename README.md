@@ -61,24 +61,20 @@ Or use the public GitHub Pages build (deployed on every push to `main`):
 https://yishengjiang99.github.io/audio-cue-detector/
 ```
 
-Click `Enable Audio Context`, choose a browser-visible audio input, load local
-cue audio files and an optional player-authored strategy map, then start
-detection.
+Select a **microphone**, click **Choose Microphone** to grant browser access,
+load local cue audio files and an optional player-authored strategy map, then
+start detection.
 
-## macOS Loopback Setup (BlackHole)
+## Microphone Input Only
 
-Browsers cannot capture macOS output-only devices such as `External Headphones`
-directly. To hear game audio in the coach:
+Live detection and Analysis Session recording use **physical microphones**
+only. Click **Choose Microphone** to pick a mic and open the browser media
+input stream. Virtual loopback devices (BlackHole, VB-Cable, Stereo Mix, etc.)
+are filtered out of the device list.
 
-1. Install [BlackHole](https://existential.audio/blackhole/) (2ch is enough).
-2. Open **Audio MIDI Setup** → create a **Multi-Output Device** that includes
-   your headphones/speakers **and** BlackHole.
-3. Set WoW (or system output) to the Multi-Output Device so you still hear
-   audio locally.
-4. In the browser app, select **BlackHole** as the audio input.
-
-On Windows, use a similar loopback/virtual cable device that appears in
-`navigator.mediaDevices.enumerateDevices()`.
+Point your mic at your speakers or use open-back headphones if you want room
+audio to reach the coach. System output / loopback capture is intentionally not
+supported.
 
 ## Features
 
@@ -120,7 +116,7 @@ example.
 ## Allowed Inputs
 
 - User-provided audio clips.
-- Browser-captured audio that the user explicitly grants.
+- Microphone audio that the user explicitly grants via **Choose Microphone**.
 - User-exported combat logs from `_retail_/Logs/WoWCombatLog.txt`.
 - User-authored strategy maps such as `actions.example.json`.
 - User notes, reviews, or manually exported data that do not require extracting
@@ -157,7 +153,7 @@ normalized to `PUSH` and `PULL`.
 
 ## Limitations
 
-- Browser audio capture depends on OS loopback routing.
+- Live input is microphone-only; game audio must reach the mic acoustically or via speaker playback.
 - Matching is interpretable spectral similarity, not a full ML classifier.
 - Combat-log alignment is manual/semi-automatic; clock drift may require offset
   tweaks.

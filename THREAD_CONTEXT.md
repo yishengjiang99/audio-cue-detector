@@ -8,9 +8,9 @@ Do not automate or control World of Warcraft gameplay. Do not attach to the game
 process, read game memory, inspect packets, use hidden game state, send keystrokes
 or clicks, or automate rating gain.
 
-The allowed direction is a separate advisory webpage that listens to microphone,
-loopback/system, or remote-device audio and emits human-facing guidance such as
-`PUSH`, `PULL`, or `NEUTRAL`.
+The allowed direction is a separate advisory webpage that listens to a
+user-chosen **microphone** and emits human-facing guidance such as `PUSH`,
+`PULL`, or `NEUTRAL`. Loopback/system output capture is not supported.
 
 ## Current Direction
 
@@ -18,7 +18,8 @@ Browser-native Web Audio implementation only. No Python, Swift, Docker, or ffmpe
 in the normal runtime path.
 
 The app runs as a static webpage deployed to GitHub Pages and served locally via
-`npm start` / `bin/audio-cue-coach.js`.
+`npm start` / `bin/audio-cue-coach.js`. Live input is microphone-only: user
+clicks **Choose Microphone**, loopback/virtual devices are filtered out.
 
 ## Implemented
 
@@ -58,12 +59,11 @@ full checklist.
 - GitHub Pages returns 200 for `/` and `/app.js`.
 - GitHub Actions Pages deploy succeeds on push to `main`.
 
-Browser audio permission and live loopback capture still need manual verification
-in the opened page.
+Browser microphone permission still needs manual verification in the opened page.
 
 ## Next Plausible Work
 
-- Manual browser verification with BlackHole loopback on macOS.
-- Tune thresholds against real browser-captured arena audio.
+- Manual browser verification with a physical microphone in arena conditions.
+- Tune thresholds against real microphone-captured room/speaker audio.
 - Improve cue-file indexing accuracy and combat-log alignment heuristics.
 - Optional browser overlay or advisory audio cue output.

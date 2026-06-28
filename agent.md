@@ -16,7 +16,7 @@ This is a **browser-native advisory audio coach** for WoW Solo Shuffle. It must 
 - Send keystrokes, clicks, or automate gameplay
 - Parse CASC assets or redistribute Blizzard audio
 
-Allowed work: Web Audio analysis, user-provided cue files, browser-captured loopback audio, user-exported combat logs, and fingerprint export/import (numeric features + labels only).
+Allowed work: Web Audio analysis, user-provided cue files, browser-captured **microphone** audio (no loopback), user-exported combat logs, and fingerprint export/import (numeric features + labels only).
 
 User-facing actions are **`PUSH`**, **`PULL`**, and **`NEUTRAL`**. Legacy `ATTACK` / `RUN` map values normalize to `PUSH` / `PULL`.
 
@@ -30,7 +30,7 @@ User-facing actions are **`PUSH`**, **`PULL`**, and **`NEUTRAL`**. Legacy `ATTAC
 
 - Keep the app fully client-side; all cue extraction and matching stays in JavaScript.
 - Require explicit user gesture before `AudioContext` starts.
-- Document macOS loopback (BlackHole + Multi-Output Device) in UI and README when touching audio-input docs.
+- Audio input is **microphone-only**. Filter virtual loopback devices from the picker; require **Choose Microphone** click before `getUserMedia`.
 - Analysis Session examples require **user review and confirm** — never auto-add to the cue library.
 - Update `THREAD_CONTEXT.md` when pivoting architecture or recording verification state.
 - Use `PROMPT.md` as the continuation spec for new feature work.
@@ -87,11 +87,11 @@ node --check combat-log.js
 node --check bin/audio-cue-coach.js
 ```
 
-Browser audio permission and loopback capture require manual verification in the opened page.
+Browser microphone permission requires manual verification in the opened page.
 
 ## Current Caveats
 
-- Browsers cannot capture macOS output-only devices (e.g. External Headphones) without a loopback virtual input.
+- Live input is microphone-only; loopback/system output devices are excluded by design.
 - Combat-log ↔ audio alignment is manual/semi-automatic; offset tuning may be needed per session.
 - Stereo and Advanced Combat Logging position hints are approximate metadata only.
 - `.gitignore` excludes user audio files and generated index JSON — do not commit copyrighted game audio.

@@ -15,6 +15,7 @@
         </div>
         <div class="status-grid">
           <div><span class="label">Audio</span><strong id="audioState">Locked</strong></div>
+          <div><span class="label">Microphone</span><strong id="microphoneState">Not chosen</strong></div>
           <div><span class="label">Cues</span><strong id="cueCount">0</strong></div>
           <div><span class="label">Service</span><strong id="serviceState">Idle</strong></div>
         </div>
@@ -22,7 +23,7 @@
 
       <div class="disclaimer panel">
         <strong>Advisory only — fair play preserved.</strong>
-        This tool coaches human decisions from audio you provide or route into the browser. It never automates gameplay, sends inputs, or reads game memory. Use loopback audio and your own labeled examples only.
+        This tool coaches human decisions from your microphone and user-provided examples. It never automates gameplay, sends inputs, or reads game memory. Loopback or system output capture is not supported.
       </div>
 
       <nav class="tabs" role="tablist">
@@ -34,8 +35,8 @@
       <section id="tab-coach" class="tab-panel active">
         <section class="workspace">
           <aside class="panel controls">
-            <button id="enableAudio" class="primary">Enable Audio Context</button>
-            <label>Browser-visible audio input<select id="deviceSelect"></select></label>
+            <label>Microphone<select id="deviceSelect"></select></label>
+            <button id="chooseMicrophone" class="primary">Choose Microphone</button>
             <label>User cue audio files<input id="cueFiles" type="file" accept="audio/*" multiple></label>
             <label>Player-authored strategy map<input id="actionMap" type="file" accept="application/json,.json"></label>
             <div class="row">
@@ -60,8 +61,8 @@
             </div>
             <button id="recordLiveCue" disabled>Record Example from Live</button>
             <label class="toggle"><input id="playTone" type="checkbox" checked> Advisory tone</label>
-            <div class="notice loopback-help">
-              <strong>macOS loopback setup:</strong> Install BlackHole, create a Multi-Output Device in Audio MIDI Setup (game output + BlackHole), set WoW to that device, then select BlackHole as the browser input here.
+            <div class="notice mic-help">
+              <strong>Microphone only:</strong> Click <em>Choose Microphone</em> to grant browser access and lock input to a physical mic. Virtual loopback devices (BlackHole, VB-Cable, Stereo Mix, etc.) are excluded.
             </div>
             <div class="notice">
               Load only audio clips and labels you are allowed to use. Fingerprints store derived features, never raw copyrighted audio.
@@ -115,7 +116,7 @@
         <div class="session-grid">
           <aside class="panel controls">
             <h2>Analysis Session</h2>
-            <p class="subtle">Record fight audio, align a combat log, review proposed cue segments, and confirm examples into your library.</p>
+            <p class="subtle">Record fight audio from your microphone, align a combat log, review proposed cue segments, and confirm examples into your library.</p>
             <div class="button-row">
               <button id="startSession" disabled>Start Recording</button>
               <button id="stopSession" disabled>Stop Recording</button>

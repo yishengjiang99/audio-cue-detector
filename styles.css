@@ -86,7 +86,7 @@ h2 { font-size: 16px; }
 
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  grid-template-columns: repeat(4, minmax(92px, 1fr));
   gap: 10px;
 }
 
@@ -144,7 +144,7 @@ h2 { font-size: 16px; }
   font-size: 13px;
 }
 
-.loopback-help strong { color: var(--text); }
+.mic-help strong { color: var(--text); }
 
 .row {
   display: grid;

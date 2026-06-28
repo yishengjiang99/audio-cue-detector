@@ -15,12 +15,12 @@ The app should detect simple strategic audio cues from the game and recommend on
 - Single self-contained webpage (vanilla HTML + JS preferred; no heavy frameworks).
 - Use only browser APIs: Web Audio API, `getUserMedia`, `AudioContext`, AnalyserNode, etc.
 - Require explicit user gesture (click/tap) to initialize `AudioContext`.
-- Audio input must be limited to browser-visible sources (user must configure a loopback device such as BlackHole on macOS to capture game output).
+- Audio input must be **microphone-only**. User clicks to choose a physical mic; exclude loopback/virtual devices from the picker.
 - Support loading user-provided audio examples via file inputs (WAV/MP3/etc.).
 - All cue extraction, feature computation, and matching must happen in client-side JavaScript.
 - No Swift, Python, Docker, or server-side components for normal operation.
 
-**Note on loopback**: Browser APIs cannot capture macOS output-only devices directly. Clearly document the setup (BlackHole + Multi-Output Device) in the UI/README.
+**Note on input**: Do not support system output or loopback capture. Document microphone-only setup in the UI/README.
 
 ## Data & Training Boundaries
 
@@ -42,7 +42,7 @@ Frame the system as an **advisory cue matcher / strategy scorer**. Compare live 
 Support **Analysis Sessions** that let users rapidly build high-quality labeled training data by combining recorded game audio with exported combat logs.
 
 **Core flow**:
-- User starts an Analysis Session and records a segment of game audio (via the existing loopback input) while playing or reviewing footage. The app captures the raw audio with timestamps.
+- User starts an Analysis Session and records a segment via the chosen microphone while playing or reviewing footage. The app captures the raw audio with timestamps.
 - User optionally uploads the corresponding WoW combat log file (or a relevant time-range excerpt) from `_retail_/Logs/WoWCombatLog.txt`. The app should support both normal and Advanced Combat Logging formats.
 - The app parses the log for relevant events (especially `SPELL_CAST_*`, `SPELL_AURA_*`, damage/heal events, and other audible effects) within the recording’s time window.
 - **Timestamp alignment**: Provide a simple interface for the user to align the recording’s start time with the log (manual offset slider + visual timeline of audio waveform + log events). Offer automatic suggestions based on audio energy spikes or silence detection.
@@ -85,7 +85,7 @@ This feature should feel like a natural extension of the existing “Record Exam
 - Large, glanceable recommendation display.
 - Easy cue library management (load, record, label, delete, play examples).
 - Tunable parameters (sensitivity, analysis window, refractory period).
-- Comprehensive README with setup instructions (especially macOS loopback), usage tips for 2400-level play, and limitations.
+- Comprehensive README with microphone setup instructions, usage tips for 2400-level play, and limitations.
 - Make it feel professional and fun for a dedicated Solo Shuffle player.
 
 Prioritize a solid v1 that is immediately usable and extensible. Keep the experience lightweight, responsive, and fully offline-capable after loading.
