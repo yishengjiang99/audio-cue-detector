@@ -1,78 +1,94 @@
-# Continuation Prompt
-
-You are working in the public repo:
-
-```text
-https://github.com/yishengjiang99/audio-cue-detector
-```
-
-Local checkout:
-
-```text
-/Applications/World of Warcraft/_retail_/tools/audio_cue_detector
-```
-
 ## Product Goal
 
-Build a browser-native advisory audio coach to help a human player legitimately pursue `2400` rating in World of Warcraft `Solo Shuffle` during the `Midnight` expansion.
+Build a **browser-native advisory audio coach** to help players legitimately pursue 2400 rating in World of Warcraft Solo Shuffle (Midnight expansion).
 
-The app should recommend simple strategic audio/visual cues such as:
+The app should detect simple strategic audio cues from the game and recommend one of three actions:
 
-- `PUSH`: trade forward, follow pressure, commit damage, or capitalize on a teammate/enemy cooldown window.
-- `PULL`: kite, line, reset, avoid overextending, or wait for defensive recovery.
-- `NEUTRAL`: no strong recommendation.
+- **PUSH** — trade forward, follow pressure, commit damage, or capitalize on a cooldown window.
+- **PULL** — kite, line of sight, reset, avoid overextending, or wait for defensive recovery.
+- **NEUTRAL** — no strong recommendation.
 
-The tool must be a coaching aid only. It must never play the game, select targets, move the character, press abilities, automate inputs, or infer hidden state.
+**Core rule**: This is strictly a coaching / training aid. It must never play the game, select targets, move the character, press abilities, automate inputs, or infer hidden game state. It only analyzes user-provided or user-routed audio.
 
 ## Required Architecture
 
-- Run as a webpage.
-- Use Web Audio APIs and ordinary browser media permissions.
-- Require the user to explicitly enable `AudioContext` with a click or equivalent browser gesture.
-- Capture only browser-visible audio inputs through `getUserMedia`, such as a loopback/system-audio input device if the user has configured one.
-- Allow local cue/audio examples to be loaded by the user through file inputs.
-- Keep all cue extraction and matching in JavaScript.
-- Do not use Swift.
-- Do not use Python.
-- Do not require Docker for normal operation.
+- Single self-contained webpage (vanilla HTML + JS preferred; no heavy frameworks).
+- Use only browser APIs: Web Audio API, `getUserMedia`, `AudioContext`, AnalyserNode, etc.
+- Require explicit user gesture (click/tap) to initialize `AudioContext`.
+- Audio input must be limited to browser-visible sources (user must configure a loopback device such as BlackHole on macOS to capture game output).
+- Support loading user-provided audio examples via file inputs (WAV/MP3/etc.).
+- All cue extraction, feature computation, and matching must happen in client-side JavaScript.
+- No Swift, Python, Docker, or server-side components for normal operation.
 
-Browser APIs cannot directly capture macOS output-only devices such as `External Headphones`. If the user wants game-output analysis, they must provide a browser-visible loopback/system-audio input source.
+**Note on loopback**: Browser APIs cannot capture macOS output-only devices directly. Clearly document the setup (BlackHole + Multi-Output Device) in the UI/README.
 
-## Data And Training Boundary
+## Data & Training Boundaries
 
-Do not datamine, reverse engineer, inspect, or parse the World of Warcraft `_retail_` binary or CASC game assets.
-
-Allowed inputs:
-
-- User-provided audio clips.
-- Browser-captured audio that the user explicitly grants.
-- User-authored action maps.
-- User-provided notes, match reviews, or manually exported data that does not require violating game terms or extracting hidden state.
-
-Do not redistribute Blizzard/game audio assets. If fingerprints are added later, store only user-generated numeric features and labels, never copyrighted audio.
+- Allowed: User-provided audio clips, browser-captured audio (with explicit permission), user-exported combat logs, user-authored labels/action maps, manually exported notes.
+- Strictly forbidden: Datamining, reverse-engineering, or parsing the WoW binary / CASC assets. Do not redistribute any Blizzard audio.
+- Fingerprints / models (if added) must store only derived numeric features + user labels — never raw copyrighted audio.
 
 ## Recommendation Model
 
-If adding a model or scoring layer, frame it as an advisory strategy scorer, not as an automation engine. It may compare visible/audio-observable cues against player-authored strategic labels and produce `PUSH`, `PULL`, or `NEUTRAL`.
+Frame the system as an **advisory cue matcher / strategy scorer**. Compare live audio features against user-authored examples and output PUSH / PULL / NEUTRAL.
 
-Avoid language or implementation that implies exploiting, botting, binary mining, memory inspection, packet inspection, or adversarial manipulation of the game client. Use terms like:
+- Prefer simple, interpretable matching (e.g., time-domain stats + spectral similarity) over complex ML unless it adds clear value.
+- Support a training feedback loop: users should be able to record short clips during/after gameplay and label them easily.
 
-- `strategy scorer`
-- `cue matcher`
-- `pressure/reset classifier`
-- `training feedback loop`
+**Non-goals**: Full ML classifier, real-time action automation, hidden state inference, or perfect accuracy. Focus on helpful, tunable cues that augment human decision-making.
 
-Do not use an "adversarial gain network" to optimize gameplay actions or exploit opponent behavior. Any learning loop should support post-game review, cue tuning, or player training.
+## Audio + Combat Log Analysis Sessions (Training Data Enrichment)
 
-## Safety Constraints
+Support **Analysis Sessions** that let users rapidly build high-quality labeled training data by combining recorded game audio with exported combat logs.
 
-- No WoW process control.
-- No input injection.
-- No memory reads.
-- No packet inspection.
-- No binary datamining.
+**Core flow**:
+- User starts an Analysis Session and records a segment of game audio (via the existing loopback input) while playing or reviewing footage. The app captures the raw audio with timestamps.
+- User optionally uploads the corresponding WoW combat log file (or a relevant time-range excerpt) from `_retail_/Logs/WoWCombatLog.txt`. The app should support both normal and Advanced Combat Logging formats.
+- The app parses the log for relevant events (especially `SPELL_CAST_*`, `SPELL_AURA_*`, damage/heal events, and other audible effects) within the recording’s time window.
+- **Timestamp alignment**: Provide a simple interface for the user to align the recording’s start time with the log (manual offset slider + visual timeline of audio waveform + log events). Offer automatic suggestions based on audio energy spikes or silence detection.
+- **Auto-proposal of labeled examples**: For each matching event in the time window, the app extracts the corresponding short audio segment and proposes a labeled cue example, e.g.:
+  - “Cast: [SpellName] by [SourceName]”
+  - “Aura applied: [SpellName] on [TargetName]”
+  - Include spell ID/name when available for richer metadata.
+- **User review & confirmation**: Show a review interface (waveform with event markers on a timeline). User can play individual segments, adjust boundaries, edit labels, add notes, or discard. Only confirmed examples are added to the main cue library.
+- **Optional positioning enrichment** (“cast source origin”):
+  - When Advanced Combat Logging is enabled, extract available positional data (X/Y coordinates, MapID, facing) from relevant log events and attach it as metadata.
+  - Perform basic client-side stereo audio analysis (left/right balance and volume envelope) to suggest rough direction/distance.
+  - Clearly label these as approximate/supplementary. Allow easy user override or manual tagging (“Sound came from left/front”).
+  - Positioning metadata can later be used for filtering or weighted matching but is **not required** for core PUSH/PULL recommendations.
+
+**Goals & Benefits**:
+- Dramatically accelerate creation of spell- and effect-specific cue examples.
+- Enable more precise, context-aware recommendations (e.g., distinguish friendly vs. enemy casts, or note high-priority spells).
+- Strengthen the training feedback loop with semi-automated labeling while keeping the human in full control.
+
+**Constraints & Guardrails**:
+- All processing is local and client-side.
+- No automatic addition of examples — user must review and confirm.
+- Do not attempt to reconstruct hidden game state beyond what is explicitly present in the user-provided audio recording + uploaded combat log.
+- Keep positioning features clearly marked as optional and approximate.
+- Focus on events that produce audible cues. Provide clear progress indicators for large logs/recordings.
+- Examples created this way should be fully compatible with the existing cue library (playable, deletable, re-labelable, exportable).
+
+This feature should feel like a natural extension of the existing “Record Example from Live” flow, but scaled up for entire sessions/fights.
+
+## Safety & Fair Play Constraints
+
+- No WoW process interaction, input injection, memory/packet inspection, or binary access.
 - No protected API abuse.
-- No hidden game-state inference.
-- No automated combat, movement, targeting, cooldown usage, interrupts, or rotations.
+- Include a prominent disclaimer that the tool is advisory only and preserves fair play.
+- All processing is local and client-side.
 
-The final experience should help the player make better human decisions while preserving fair play.
+## Deliverables & Polish
+
+- Clean, dark/gaming-themed UI with real-time waveform + spectrum visualizers.
+- Large, glanceable recommendation display.
+- Easy cue library management (load, record, label, delete, play examples).
+- Tunable parameters (sensitivity, analysis window, refractory period).
+- Comprehensive README with setup instructions (especially macOS loopback), usage tips for 2400-level play, and limitations.
+- Make it feel professional and fun for a dedicated Solo Shuffle player.
+
+Prioritize a solid v1 that is immediately usable and extensible. Keep the experience lightweight, responsive, and fully offline-capable after loading.
+```
+
+This version integrates the new section cleanly while maintaining the overall improvements from before (tighter language, non-goals, structure). It’s ready to use as a continuation prompt. Let me know if you want further tweaks!

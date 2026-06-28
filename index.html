@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Audio Cue Detector</title>
+    <title>Solo Shuffle Audio Coach</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <main class="shell">
       <section class="panel status-panel">
         <div>
-          <h1>Audio Cue Detector</h1>
-          <p class="subtle">Browser-native advisory detection with Web Audio. No game control, process hooks, memory reads, Python, or Swift.</p>
+          <h1>Solo Shuffle Audio Coach</h1>
+          <p class="subtle">Browser-native advisory cue matching for human decisions. No game control, process hooks, memory reads, packet inspection, or hidden state inference.</p>
         </div>
         <div class="status-grid">
           <div><span class="label">Audio</span><strong id="audioState">Locked</strong></div>
@@ -20,40 +20,177 @@
         </div>
       </section>
 
-      <section class="workspace">
-        <aside class="panel controls">
-          <button id="enableAudio" class="primary">Enable Audio Context</button>
-          <label>Audio input<select id="deviceSelect"></select></label>
-          <label>Cue files<input id="cueFiles" type="file" accept="audio/*" multiple></label>
-          <label>Action map JSON<input id="actionMap" type="file" accept="application/json,.json"></label>
-          <div class="row">
-            <label>Threshold<input id="threshold" type="range" min="0.65" max="0.98" step="0.01" value="0.86"></label>
-            <output id="thresholdValue">0.86</output>
-          </div>
-          <div class="row">
-            <label>Min match<input id="minMatch" type="range" min="48" max="192" step="16" value="80"></label>
-            <output id="minMatchValue">80 ms</output>
-          </div>
-          <div class="button-row">
-            <button id="startService" disabled>Start</button>
-            <button id="stopService" disabled>Stop</button>
-          </div>
-        </aside>
+      <div class="disclaimer panel">
+        <strong>Advisory only — fair play preserved.</strong>
+        This tool coaches human decisions from audio you provide or route into the browser. It never automates gameplay, sends inputs, or reads game memory. Use loopback audio and your own labeled examples only.
+      </div>
 
-        <section class="panel readout">
-          <div id="decision" class="decision neutral">NEUTRAL</div>
-          <div class="meters">
-            <div><span class="label">Input level</span><meter id="inputLevel" min="0" max="1" value="0"></meter></div>
-            <div><span class="label">Best score</span><meter id="bestScore" min="0" max="1" value="0"></meter></div>
-          </div>
-          <div class="log-header">
-            <h2>Events</h2>
-            <button id="clearLog">Clear</button>
-          </div>
-          <ol id="eventLog" class="event-log"></ol>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="coach" role="tab" aria-selected="true">Live Coach</button>
+        <button class="tab" data-tab="library" role="tab">Cue Library</button>
+        <button class="tab" data-tab="session" role="tab">Analysis Session</button>
+      </nav>
+
+      <section id="tab-coach" class="tab-panel active">
+        <section class="workspace">
+          <aside class="panel controls">
+            <button id="enableAudio" class="primary">Enable Audio Context</button>
+            <label>Browser-visible audio input<select id="deviceSelect"></select></label>
+            <label>User cue audio files<input id="cueFiles" type="file" accept="audio/*" multiple></label>
+            <label>Player-authored strategy map<input id="actionMap" type="file" accept="application/json,.json"></label>
+            <div class="row">
+              <label>Threshold<input id="threshold" type="range" min="0.65" max="0.98" step="0.01" value="0.86"></label>
+              <output id="thresholdValue">0.86</output>
+            </div>
+            <div class="row">
+              <label>Min match<input id="minMatch" type="range" min="48" max="192" step="16" value="80"></label>
+              <output id="minMatchValue">80 ms</output>
+            </div>
+            <div class="row">
+              <label>Refractory<input id="refractory" type="range" min="600" max="3000" step="100" value="1400"></label>
+              <output id="refractoryValue">1400 ms</output>
+            </div>
+            <div class="row">
+              <label>Global cooldown<input id="globalCooldown" type="range" min="0" max="4000" step="200" value="2000"></label>
+              <output id="globalCooldownValue">2000 ms</output>
+            </div>
+            <div class="button-row">
+              <button id="startService" disabled>Start</button>
+              <button id="stopService" disabled>Stop</button>
+            </div>
+            <button id="recordLiveCue" disabled>Record Example from Live</button>
+            <label class="toggle"><input id="playTone" type="checkbox" checked> Advisory tone</label>
+            <div class="notice loopback-help">
+              <strong>macOS loopback setup:</strong> Install BlackHole, create a Multi-Output Device in Audio MIDI Setup (game output + BlackHole), set WoW to that device, then select BlackHole as the browser input here.
+            </div>
+            <div class="notice">
+              Load only audio clips and labels you are allowed to use. Fingerprints store derived features, never raw copyrighted audio.
+            </div>
+          </aside>
+
+          <section class="panel readout">
+            <div id="decision" class="decision neutral">NEUTRAL</div>
+            <div class="visualizers">
+              <div class="viz-card">
+                <span class="label">Waveform</span>
+                <canvas id="waveformCanvas" width="640" height="96"></canvas>
+              </div>
+              <div class="viz-card">
+                <span class="label">Spectrum</span>
+                <canvas id="spectrumCanvas" width="640" height="96"></canvas>
+              </div>
+            </div>
+            <div class="meters">
+              <div><span class="label">Input level</span><meter id="inputLevel" min="0" max="1" value="0"></meter></div>
+              <div><span class="label">Strategy score</span><meter id="bestScore" min="0" max="1" value="0"></meter></div>
+            </div>
+            <div class="log-header">
+              <h2>Events</h2>
+              <button id="clearLog">Clear</button>
+            </div>
+            <ol id="eventLog" class="event-log"></ol>
+          </section>
         </section>
       </section>
+
+      <section id="tab-library" class="tab-panel">
+        <div class="library-grid">
+          <aside class="panel controls">
+            <h2>Cue Library</h2>
+            <p class="subtle">Manage labeled examples. Export fingerprints (features + labels only) for backup or sharing.</p>
+            <div class="button-row">
+              <button id="exportFingerprints">Export Fingerprints</button>
+              <label class="file-button">Import Fingerprints<input id="importFingerprints" type="file" accept="application/json,.json" hidden></label>
+            </div>
+            <label>Filter<input id="libraryFilter" type="search" placeholder="Search labels…"></label>
+          </aside>
+          <section class="panel library-list-wrap">
+            <ul id="cueLibrary" class="cue-library"></ul>
+            <p id="libraryEmpty" class="subtle empty-state">No cues loaded yet. Add files on Live Coach or confirm examples from an Analysis Session.</p>
+          </section>
+        </div>
+      </section>
+
+      <section id="tab-session" class="tab-panel">
+        <div class="session-grid">
+          <aside class="panel controls">
+            <h2>Analysis Session</h2>
+            <p class="subtle">Record fight audio, align a combat log, review proposed cue segments, and confirm examples into your library.</p>
+            <div class="button-row">
+              <button id="startSession" disabled>Start Recording</button>
+              <button id="stopSession" disabled>Stop Recording</button>
+            </div>
+            <label>Or upload session audio<input id="sessionAudioFile" type="file" accept="audio/*"></label>
+            <label>Combat log (WoWCombatLog.txt)<input id="combatLogFile" type="file" accept=".txt,text/plain"></label>
+            <div class="row">
+              <label>Log offset<input id="logOffset" type="range" min="-30" max="30" step="0.1" value="0"></label>
+              <output id="logOffsetValue">0.0 s</output>
+            </div>
+            <button id="suggestOffset" disabled>Suggest Offset from Audio</button>
+            <button id="generateProposals" disabled>Generate Proposals</button>
+            <div class="progress-wrap">
+              <span class="label">Progress</span>
+              <progress id="sessionProgress" max="100" value="0"></progress>
+              <span id="sessionProgressLabel" class="subtle">Idle</span>
+            </div>
+          </aside>
+
+          <section class="panel session-main">
+            <div class="viz-card timeline-card">
+              <span class="label">Session timeline (audio envelope + log events)</span>
+              <canvas id="sessionTimeline" width="900" height="140"></canvas>
+            </div>
+            <div class="log-header">
+              <h2>Proposed Examples</h2>
+              <span id="proposalCount" class="subtle">0 proposals</span>
+            </div>
+            <ul id="proposalList" class="proposal-list"></ul>
+            <p id="proposalEmpty" class="subtle empty-state">Record or upload audio, load a combat log, align the timeline, then generate proposals.</p>
+          </section>
+        </div>
+      </section>
     </main>
+
+    <dialog id="recordDialog" class="record-dialog">
+      <form method="dialog" class="record-form">
+        <h2>Save Live Example</h2>
+        <label>Label<input id="recordLabel" required></label>
+        <label>Action<select id="recordAction">
+          <option value="PUSH">PUSH</option>
+          <option value="PULL">PULL</option>
+          <option value="NEUTRAL">NEUTRAL</option>
+        </select></label>
+        <label>Notes<textarea id="recordNotes" rows="2" placeholder="Optional context"></textarea></label>
+        <div class="button-row">
+          <button value="cancel">Cancel</button>
+          <button id="confirmRecord" value="confirm" class="primary">Add to Library</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="proposalDialog" class="record-dialog">
+      <form method="dialog" class="record-form">
+        <h2>Review Proposed Example</h2>
+        <label>Label<input id="proposalLabel" required></label>
+        <label>Action<select id="proposalAction">
+          <option value="PUSH">PUSH</option>
+          <option value="PULL">PULL</option>
+          <option value="NEUTRAL" selected>NEUTRAL</option>
+        </select></label>
+        <div class="row">
+          <label>Start (s)<input id="proposalStart" type="number" min="0" step="0.05"></label>
+          <label>End (s)<input id="proposalEnd" type="number" min="0" step="0.05"></label>
+        </div>
+        <label>Direction tag (approximate)<input id="proposalDirection" placeholder="e.g. left / front / far"></label>
+        <label>Notes<textarea id="proposalNotes" rows="2"></textarea></label>
+        <div class="button-row">
+          <button value="cancel">Cancel</button>
+          <button id="playProposal" type="button">Play Segment</button>
+          <button id="confirmProposal" value="confirm" class="primary">Confirm to Library</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="./app.js"></script>
   </body>
 </html>

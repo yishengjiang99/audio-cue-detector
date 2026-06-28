@@ -1,0 +1,16 @@
+{
+  "name": "audio-cue-detector",
+  "version": "1.0.0",
+  "description": "Browser-native advisory audio cue coach for Solo Shuffle",
+  "private": true,
+  "bin": {
+    "audio-cue-coach": "./bin/audio-cue-coach.js"
+  },
+  "scripts": {
+    "start": "node bin/audio-cue-coach.js",
+    "serve": "node bin/audio-cue-coach.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

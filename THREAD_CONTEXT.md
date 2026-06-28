@@ -6,7 +6,7 @@ This repository came from a non-botting advisory audio cue detector exploration.
 
 Do not automate or control World of Warcraft gameplay. Do not attach to the game process, read game memory, inspect packets, use hidden game state, send keystrokes or clicks, or automate rating gain.
 
-The allowed direction is a separate advisory process that listens to microphone, system, or remote-device audio and emits human-facing guidance such as `RUN`, `ATTACK`, or `NEUTRAL`.
+The allowed direction is a separate advisory webpage that listens to microphone, loopback/system, or remote-device audio and emits human-facing guidance such as `PUSH`, `PULL`, or `NEUTRAL`.
 
 ## Current Direction
 
@@ -23,13 +23,15 @@ The project contains:
 - `index.html`: the Web Audio UI.
 - `app.js`: in-browser cue indexing and live detection.
 - `styles.css`: UI styling.
-- `actions.example.json`: maps path/name substrings to advisory actions.
+- `actions.example.json`: maps path/name substrings to advisory strategy labels.
 - `PROMPT.md`: continuation prompt for future work.
 - `README.md`: includes local webpage usage.
 
-Detection accumulates short rolling Web Audio analysis windows for stable frequency matching and logs events with fields such as time, label, action, and score.
+Detection accumulates short rolling Web Audio analysis windows for stable frequency matching and logs events with fields such as time, label, action, and strategy score.
 
 The detector includes cooldown and global cooldown logic to reduce duplicate or tail detections.
+
+The current app normalizes legacy `ATTACK` and `RUN` strategy-map values to `PUSH` and `PULL` for compatibility, but user-facing output should stay on `PUSH`, `PULL`, and `NEUTRAL`.
 
 ## Local Findings
 

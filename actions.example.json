@@ -1,8 +1,12 @@
 {
-  "alarm": "RUN",
-  "warning": "RUN",
-  "detected-stealth": "RUN",
-  "horn": "ATTACK",
-  "go": "ATTACK",
-  "push": "ATTACK"
+  "alarm": "PULL",
+  "warning": "PULL",
+  "reset": "PULL",
+  "kite": "PULL",
+  "line": "PULL",
+  "detected-stealth": "PULL",
+  "horn": "PUSH",
+  "go": "PUSH",
+  "pressure": "PUSH",
+  "push": "PUSH"
 }
