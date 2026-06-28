@@ -81,6 +81,10 @@ supported.
 ### Live Coach
 
 - Real-time waveform and spectrum visualizers.
+- Live mic analysis in an `AudioWorkletProcessor` `process()` callback; verdicts
+  post to the main thread.
+- Main-thread advisory audio queue plays PUSH (high tone) / PULL (low tone) cues
+  in order.
 - Mel-spectral fingerprint matching against your cue library.
 - Tunable threshold, minimum match window, per-cue refractory period, and
   global action cooldown.

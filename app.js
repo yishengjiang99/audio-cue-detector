@@ -5,18 +5,66 @@ import {
   suggestAlignmentOffset,
   buildAudioEnvelope,
 } from "./combat-log.js";
+import { extractFrames } from "./audio-dsp.js";
 
 const LOOPBACK_DEVICE_PATTERN = /loopback|blackhole|soundflower|vb-audio|virtual|cable output|stereo mix|what u hear|aggregate device|multi[- ]output|monitor of/i;
 
+class AdvisoryAudioQueue {
+  constructor(audioContext) {
+    this.audioContext = audioContext;
+    this.queue = [];
+    this.playing = false;
+  }
+
+  enqueue(action) {
+    const normalized = normalizeAction(action);
+    if (normalized === "NEUTRAL") return;
+    this.queue.push(normalized);
+    this.drain();
+  }
+
+  async drain() {
+    if (this.playing || !this.queue.length || !el.playTone.checked) return;
+    this.playing = true;
+    while (this.queue.length) {
+      const action = this.queue.shift();
+      await this.playTone(action);
+    }
+    this.playing = false;
+  }
+
+  playTone(action) {
+    return new Promise((resolve) => {
+      const now = this.audioContext.currentTime;
+      const oscillator = this.audioContext.createOscillator();
+      const gain = this.audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(action === "PUSH" ? 880 : 330, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      oscillator.connect(gain).connect(this.audioContext.destination);
+      oscillator.onended = resolve;
+      oscillator.start(now);
+      oscillator.stop(now + 0.22);
+    });
+  }
+
+  clear() {
+    this.queue = [];
+  }
+}
+
 const state = {
   audioContext: null,
-  analyser: null,
+  workletNode: null,
+  muteGain: null,
+  workletReady: false,
+  advisoryQueue: null,
   mediaStream: null,
   microphoneReady: false,
   source: null,
-  raf: 0,
   cues: [],
-  featureHistory: [],
   liveCapture: [],
   lastHitAt: 0,
   lastActionAt: { PUSH: 0, PULL: 0, NEUTRAL: 0 },
@@ -114,10 +162,41 @@ function microphoneConstraints(deviceId) {
 }
 
 async function ensureAudioContext() {
-  if (!state.audioContext) state.audioContext = new AudioContext({ sampleRate: 16000 });
+  if (!state.audioContext) {
+    state.audioContext = new AudioContext({ sampleRate: 16000 });
+    state.advisoryQueue = new AdvisoryAudioQueue(state.audioContext);
+  }
   if (state.audioContext.state !== "running") await state.audioContext.resume();
   el.audioState.textContent = state.audioContext.state;
   updateControlStates();
+}
+
+async function ensureWorklet() {
+  await ensureAudioContext();
+  if (state.workletReady) return;
+  await state.audioContext.audioWorklet.addModule(new URL("./cue-processor.js", import.meta.url));
+  state.workletReady = true;
+}
+
+function syncWorkletConfig() {
+  if (!state.workletNode) return;
+  state.workletNode.port.postMessage({
+    type: "config",
+    threshold: Number(el.threshold.value),
+    minFrames: Math.max(1, Math.ceil(Number(el.minMatch.value) / 16)),
+  });
+}
+
+function syncWorkletCues() {
+  if (!state.workletNode) return;
+  state.workletNode.port.postMessage({
+    type: "cues",
+    cues: state.cues.map(({ label, action, features }) => ({
+      label,
+      action: normalizeAction(action),
+      features,
+    })),
+  });
 }
 
 function setMicrophoneState(text) {
@@ -171,7 +250,7 @@ async function chooseMicrophone() {
     }
 
     state.mediaStream?.getTracks().forEach((track) => track.stop());
-    if (state.analyser) stop();
+    if (state.workletNode) stop();
 
     state.mediaStream = await navigator.mediaDevices.getUserMedia(microphoneConstraints(deviceId));
     state.microphoneReady = true;
@@ -199,78 +278,6 @@ async function getMicrophoneStream() {
   }
   await chooseMicrophone();
   return state.mediaStream;
-}
-
-function hzToMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
-function melToHz(mel) { return 700 * (10 ** (mel / 2595) - 1); }
-
-function makeMelFilters(sampleRate, fftSize, count = 18) {
-  const minMel = hzToMel(40);
-  const maxMel = hzToMel(sampleRate / 2);
-  const points = Array.from({ length: count + 2 }, (_, i) => melToHz(minMel + (maxMel - minMel) * i / (count + 1)));
-  return Array.from({ length: count }, (_, i) => {
-    const left = points[i], center = points[i + 1], right = points[i + 2];
-    return Array.from({ length: fftSize / 2 }, (_, bin) => {
-      const hz = bin * sampleRate / fftSize;
-      if (hz < left || hz > right) return 0;
-      return hz <= center ? (hz - left) / (center - left) : (right - hz) / (right - center);
-    });
-  });
-}
-
-function extractFrames(samples, sampleRate) {
-  const fftSize = 512;
-  const hop = 256;
-  const filters = makeMelFilters(sampleRate, fftSize);
-  const frames = [];
-  for (let start = 0; start + fftSize <= samples.length && frames.length < 80; start += hop) {
-    let rms = 0;
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-    for (let i = 0; i < fftSize; i += 1) {
-      const value = samples[start + i];
-      rms += value * value;
-      re[i] = value * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (fftSize - 1)));
-    }
-    rms = Math.sqrt(rms / fftSize);
-    if (rms < 0.002 && frames.length === 0) continue;
-    fft(re, im);
-    const mag = Array.from({ length: fftSize / 2 }, (_, i) => Math.hypot(re[i], im[i]));
-    const mel = filters.map((filter) => Math.log1p(filter.reduce((sum, weight, i) => sum + weight * mag[i], 0)));
-    const mean = mel.reduce((a, b) => a + b, 0) / mel.length;
-    const centered = mel.map((value) => value - mean);
-    const norm = Math.hypot(...centered) || 1;
-    frames.push(centered.map((value) => value / norm));
-  }
-  return frames;
-}
-
-function fft(re, im) {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i += 1) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) {
-      [re[i], re[j]] = [re[j], re[i]];
-      [im[i], im[j]] = [im[j], im[i]];
-    }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const angle = -2 * Math.PI / len;
-    const wlenRe = Math.cos(angle), wlenIm = Math.sin(angle);
-    for (let i = 0; i < n; i += len) {
-      let wRe = 1, wIm = 0;
-      for (let j = 0; j < len / 2; j += 1) {
-        const uRe = re[i + j], uIm = im[i + j];
-        const vRe = re[i + j + len / 2] * wRe - im[i + j + len / 2] * wIm;
-        const vIm = re[i + j + len / 2] * wIm + im[i + j + len / 2] * wRe;
-        re[i + j] = uRe + vRe; im[i + j] = uIm + vIm;
-        re[i + j + len / 2] = uRe - vRe; im[i + j + len / 2] = uIm - vIm;
-        [wRe, wIm] = [wRe * wlenRe - wIm * wlenIm, wRe * wlenIm + wIm * wlenRe];
-      }
-    }
-  }
 }
 
 async function decodeToMono16k(arrayBuffer) {
@@ -329,25 +336,9 @@ async function loadCueFiles(files) {
     });
   }
   refreshCueUI();
+  syncWorkletCues();
   setService("Idle");
   updateControlStates();
-}
-
-function scoreSequence(observed, template, minFrames) {
-  const maxLen = Math.min(observed.length, template.length);
-  if (maxLen < minFrames) return { score: -1, frames: 0 };
-  let best = -1, bestFrames = 0;
-  for (let length = minFrames; length <= maxLen; length += 1) {
-    let total = 0;
-    for (let i = 0; i < length; i += 1) {
-      const obs = observed[observed.length - length + i];
-      const ref = template[i];
-      total += obs.reduce((sum, value, j) => sum + value * ref[j], 0);
-    }
-    const score = total / length;
-    if (score > best) { best = score; bestFrames = length; }
-  }
-  return { score: best, frames: bestFrames };
 }
 
 function setDecision(action) {
@@ -357,20 +348,7 @@ function setDecision(action) {
 }
 
 function playAdvisoryTone(action) {
-  if (!el.playTone.checked || !state.audioContext) return;
-  const normalized = normalizeAction(action);
-  if (normalized === "NEUTRAL") return;
-  const now = state.audioContext.currentTime;
-  const oscillator = state.audioContext.createOscillator();
-  const gain = state.audioContext.createGain();
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(normalized === "PUSH" ? 880 : 330, now);
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.08, now + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-  oscillator.connect(gain).connect(state.audioContext.destination);
-  oscillator.start(now);
-  oscillator.stop(now + 0.2);
+  state.advisoryQueue?.enqueue(action);
 }
 
 function logEvent(event) {
@@ -403,11 +381,13 @@ function drawSpectrum(freqData) {
   spectrumCtx.fillStyle = "#111719";
   spectrumCtx.fillRect(0, 0, width, height);
   const bars = 48;
-  const step = Math.floor(freqData.length / bars);
+  const step = Math.max(1, Math.floor(freqData.length / bars));
   const barWidth = width / bars;
+  let peak = 0;
+  for (let i = 0; i < bars; i += 1) peak = Math.max(peak, freqData[i * step] || 0);
+  peak = peak || 1;
   for (let i = 0; i < bars; i += 1) {
-    const value = freqData[i * step];
-    const normalized = Math.max(0, (value + 100) / 100);
+    const normalized = Math.min(1, (freqData[i * step] || 0) / peak);
     const barHeight = normalized * height;
     const hue = 200 - normalized * 120;
     spectrumCtx.fillStyle = `hsl(${hue}, 80%, 55%)`;
@@ -415,81 +395,77 @@ function drawSpectrum(freqData) {
   }
 }
 
-function tick() {
-  if (!state.analyser) return;
-  const time = new Float32Array(state.analyser.fftSize);
-  const freq = new Float32Array(state.analyser.frequencyBinCount);
-  state.analyser.getFloatTimeDomainData(time);
-  state.analyser.getFloatFrequencyData(freq);
-  const rms = Math.sqrt(time.reduce((sum, value) => sum + value * value, 0) / time.length);
-  el.inputLevel.value = Math.min(1, rms * 8);
-  drawWaveform(time);
-  drawSpectrum(freq);
+function handleWorkletMetrics(message) {
+  el.inputLevel.value = Math.min(1, message.rms * 8);
+  el.bestScore.value = message.bestScore;
+  if (message.waveform) drawWaveform(message.waveform);
+  if (message.spectrum) drawSpectrum(message.spectrum);
+  if (message.capture) state.liveCapture = Array.from(message.capture);
+}
 
-  const frames = extractFrames(time, state.audioContext.sampleRate).slice(-1);
-  state.featureHistory.push(...frames);
-  state.featureHistory = state.featureHistory.slice(-90);
-  state.liveCapture.push(...time);
-  const maxCapture = state.audioContext.sampleRate * 4;
-  if (state.liveCapture.length > maxCapture) {
-    state.liveCapture = state.liveCapture.slice(-maxCapture);
-  }
-
-  const threshold = Number(el.threshold.value);
-  const minFrames = Math.max(1, Math.ceil(Number(el.minMatch.value) / 16));
-  let best = { cue: null, score: -1, frames: 0 };
-  for (const cue of state.cues) {
-    const scored = scoreSequence(state.featureHistory, cue.features, minFrames);
-    if (scored.score > best.score) best = { cue, ...scored };
-  }
-  el.bestScore.value = Math.max(0, best.score);
-
+function handleWorkletVerdict(verdict) {
   const now = performance.now();
   const refractory = Number(el.refractory.value);
   const globalCooldown = Number(el.globalCooldown.value);
-  const action = best.cue ? normalizeAction(best.cue.action) : "NEUTRAL";
+  const action = normalizeAction(verdict.action);
   const globalOk = globalCooldown <= 0 || now - state.lastActionAt[action] > globalCooldown;
+  if (now - state.lastHitAt <= refractory || !globalOk) return;
 
-  if (best.cue && best.score >= threshold && now - state.lastHitAt > refractory && globalOk) {
-    state.lastHitAt = now;
-    state.lastActionAt[action] = now;
-    const event = {
-      time: new Date().toLocaleTimeString(),
-      label: best.cue.label,
-      action,
-      score: best.score,
-    };
-    setDecision(event.action);
-    playAdvisoryTone(event.action);
-    logEvent(event);
-    state.featureHistory = [];
-    window.setTimeout(() => setDecision("NEUTRAL"), 900);
-  }
+  state.lastHitAt = now;
+  state.lastActionAt[action] = now;
+  const event = {
+    time: new Date().toLocaleTimeString(),
+    label: verdict.label,
+    action,
+    score: verdict.score,
+  };
+  setDecision(event.action);
+  playAdvisoryTone(event.action);
+  logEvent(event);
+  window.setTimeout(() => setDecision("NEUTRAL"), 900);
+}
 
-  state.raf = requestAnimationFrame(tick);
+function handleWorkletMessage(event) {
+  const message = event.data;
+  if (message.type === "metrics") handleWorkletMetrics(message);
+  if (message.type === "verdict") handleWorkletVerdict(message);
 }
 
 async function start() {
-  await ensureAudioContext();
+  await ensureWorklet();
   const stream = await getMicrophoneStream();
+  state.source?.disconnect();
+  state.workletNode?.disconnect();
+  state.muteGain?.disconnect();
+
   state.source = state.audioContext.createMediaStreamSource(stream);
-  state.analyser = state.audioContext.createAnalyser();
-  state.analyser.fftSize = 512;
-  state.analyser.smoothingTimeConstant = 0.1;
-  state.source.connect(state.analyser);
+  state.workletNode = new AudioWorkletNode(state.audioContext, "cue-processor");
+  state.muteGain = state.audioContext.createGain();
+  state.muteGain.gain.value = 0;
+
+  state.workletNode.port.onmessage = handleWorkletMessage;
+  state.source.connect(state.workletNode);
+  state.workletNode.connect(state.muteGain);
+  state.muteGain.connect(state.audioContext.destination);
+
+  syncWorkletConfig();
+  syncWorkletCues();
+
   el.startService.disabled = true;
   el.stopService.disabled = false;
   el.recordLiveCue.disabled = false;
   setService("Running");
-  tick();
 }
 
 function stop() {
-  cancelAnimationFrame(state.raf);
+  state.workletNode?.disconnect();
+  state.workletNode = null;
+  state.muteGain?.disconnect();
+  state.muteGain = null;
+  state.source?.disconnect();
   state.source = null;
-  state.analyser = null;
-  state.featureHistory = [];
   state.liveCapture = [];
+  state.advisoryQueue?.clear();
   el.startService.disabled = false;
   el.stopService.disabled = true;
   el.recordLiveCue.disabled = true;
@@ -503,7 +479,7 @@ function updateControlStates() {
   const hasAudio = Boolean(state.audioContext);
   const hasCues = state.cues.length > 0;
   const hasMicrophone = state.microphoneReady && Boolean(el.deviceSelect.value);
-  el.startService.disabled = !(hasAudio && hasCues && hasMicrophone) || Boolean(state.analyser);
+  el.startService.disabled = !(hasAudio && hasCues && hasMicrophone) || Boolean(state.workletNode);
   el.startSession.disabled = !hasMicrophone || Boolean(state.session.recorder);
   el.stopSession.disabled = !state.session.recorder;
   el.suggestOffset.disabled = !state.session.audioBuffer;
@@ -551,6 +527,7 @@ async function playCueAudio(cue) {
 function deleteCue(id) {
   state.cues = state.cues.filter((cue) => cue.id !== id);
   refreshCueUI();
+  syncWorkletCues();
 }
 
 function relabelCue(id) {
@@ -563,6 +540,7 @@ function relabelCue(id) {
   cue.label = label.trim() || cue.label;
   cue.action = normalizeAction(action);
   refreshCueUI();
+  syncWorkletCues();
 }
 
 function exportFingerprints() {
@@ -599,6 +577,7 @@ async function importFingerprints(file) {
     });
   }
   refreshCueUI();
+  syncWorkletCues();
 }
 
 async function openRecordDialog() {
@@ -626,6 +605,7 @@ async function saveLiveRecording() {
     createdAt: Date.now(),
   });
   refreshCueUI();
+  syncWorkletCues();
 }
 
 function bufferToWavBlob(buffer) {
@@ -894,6 +874,7 @@ async function confirmProposal() {
   state.session.proposals = state.session.proposals.filter((item) => item.id !== proposal.id);
   renderProposals();
   refreshCueUI();
+  syncWorkletCues();
 }
 
 function setupTabs() {
@@ -923,8 +904,14 @@ el.actionMap.addEventListener("change", async (event) => {
   const [file] = event.target.files;
   if (file) state.actionMap = normalizeActionMap(JSON.parse(await file.text()));
 });
-el.threshold.addEventListener("input", () => { el.thresholdValue.textContent = Number(el.threshold.value).toFixed(2); });
-el.minMatch.addEventListener("input", () => { el.minMatchValue.textContent = `${el.minMatch.value} ms`; });
+el.threshold.addEventListener("input", () => {
+  el.thresholdValue.textContent = Number(el.threshold.value).toFixed(2);
+  syncWorkletConfig();
+});
+el.minMatch.addEventListener("input", () => {
+  el.minMatchValue.textContent = `${el.minMatch.value} ms`;
+  syncWorkletConfig();
+});
 el.refractory.addEventListener("input", () => { el.refractoryValue.textContent = `${el.refractory.value} ms`; });
 el.globalCooldown.addEventListener("input", () => { el.globalCooldownValue.textContent = `${el.globalCooldown.value} ms`; });
 el.startService.addEventListener("click", start);

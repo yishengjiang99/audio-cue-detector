@@ -24,8 +24,12 @@ clicks **Choose Microphone**, loopback/virtual devices are filtered out.
 ## Implemented
 
 - `index.html`: tabbed UI (Live Coach, Cue Library, Analysis Session).
-- `app.js`: mel-spectral matching, waveform/spectrum visualizers, cue library,
-  live recording, fingerprint export/import, combat-log session workflow.
+- `app.js`: main-thread UI, advisory audio queue, worklet message handling.
+- `cue-processor.js`: `AudioWorkletProcessor` analysis in `process()`, posts
+  verdicts to main thread.
+- `audio-dsp.js`: shared feature extraction for cue indexing.
+- Mel-spectral matching, waveform/spectrum visualizers, cue library, live
+  recording, fingerprint export/import, combat-log session workflow.
 - `combat-log.js`: WoW combat log parser and timeline alignment helpers.
 - `styles.css`: dark-themed UI.
 - `actions.example.json`: strategy substring map.

@@ -67,7 +67,9 @@ commit unless the user explicitly asks to hold changes local.
 
 | File | Purpose |
 |------|---------|
-| `app.js` | Live detection, cue library, session recording, UI wiring |
+| `app.js` | Main thread UI, advisory audio queue, worklet wiring, session workflow |
+| `cue-processor.js` | `AudioWorkletProcessor` live analysis in `process()` |
+| `audio-dsp.js` | Shared mel/FFT helpers for cue indexing |
 | `combat-log.js` | WoW combat log parser and timeline alignment helpers |
 | `actions.example.json` | Example player-authored strategy substring map |
 | `bin/audio-cue-coach.js` | Node static file server for local dev |
