@@ -49,10 +49,16 @@ After linking globally (`npm link`), you can also run:
 audio-cue-coach
 ```
 
-Open:
+Open locally:
 
 ```text
 http://127.0.0.1:4173
+```
+
+Or use the public GitHub Pages build (deployed on every push to `main`):
+
+```text
+https://yishengjiang99.github.io/audio-cue-detector/
 ```
 
 Click `Enable Audio Context`, choose a browser-visible audio input, load local
