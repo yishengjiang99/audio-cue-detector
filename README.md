@@ -1,88 +1,171 @@
-# Audio Cue Detector
+# Solo Shuffle Audio Coach
 
-This is a separate advisory detector. It does not attach to World of Warcraft,
-read game memory, send inputs, or redistribute audio. It builds numeric
-fingerprints from local audio clips and detects them from a raw microphone or
-remote-device PCM stream.
+Browser-native advisory audio cue matching using Web Audio. It helps a human
+player react to user-provided cues with `PUSH`, `PULL`, or `NEUTRAL`
+recommendations. It does not attach to World of Warcraft, read game memory,
+inspect packets, send inputs, infer hidden state, or redistribute audio.
 
-## Docker
+**Advisory only.** This tool coaches human decisions from audio you provide or
+route into the browser. It never automates gameplay.
 
-Build the image:
+## Project Layout
 
-```bash
-docker build -t audio-cue-detector .
+```text
+index.html          Web UI (Live Coach, Cue Library, Analysis Session)
+app.js              Detection, library management, session workflow
+combat-log.js       WoW combat log parser and alignment helpers
+styles.css          Dark-themed UI styles
+actions.example.json  Example strategy substring map
+bin/audio-cue-coach.js  Local static file server
+package.json        npm start / audio-cue-coach bin entry
+agent.md            Contributor and agent workflow notes
 ```
 
-Build an index from a mounted local clip directory:
+## Run
+
+From the project directory:
 
 ```bash
-docker run --rm \
-  -v "$PWD":/work \
-  -v "/path/to/clips":/clips:ro \
-  audio-cue-detector build_audio_index.py \
-  /clips \
-  --actions /work/actions.example.json \
-  -o /work/audio_cue_index.json
+npm start
 ```
 
-Detect from raw PCM on stdin:
+Or run the bin script directly:
 
 ```bash
-ffmpeg -hide_banner -loglevel error -i some-recording.wav \
-  -ac 1 -ar 16000 -f s16le - \
-  | docker run --rm -i -v "$PWD":/work audio-cue-detector \
-      detect_audio_stream.py /work/audio_cue_index.json
+node bin/audio-cue-coach.js
 ```
 
-## 1. Build an index from loose local clips
-
-The `_retail_` folder mostly contains addons/logs/app files. Core game assets
-live in Blizzard CASC storage under `/Applications/World of Warcraft/Data` and
-need a separate local exporter/listfile workflow if you want exact Blizzard
-clips. This tool intentionally indexes only ordinary audio files you point it
-at, such as addon sounds or your own exported cue clips.
+Optional custom port:
 
 ```bash
-cd "/Applications/World of Warcraft/_retail_"
-python3 tools/audio_cue_detector/build_audio_index.py \
-  Interface.before-wowaddons-link/Addons \
-  --actions tools/audio_cue_detector/actions.example.json \
-  -o /tmp/wow-audio-cues.json
+node bin/audio-cue-coach.js 8080
+# or
+PORT=8080 npm start
 ```
 
-The JSON contains paths and numeric feature vectors only.
-
-## 2. Detect from 128-byte frames
-
-The detector reads signed 16-bit little-endian mono PCM from stdin. At 16 kHz,
-128 bytes is 64 samples, or 4 ms. Matching still uses a short rolling window
-because a 4 ms frame alone does not contain enough frequency information for
-reliable identification.
-
-From a prerecorded clip:
+After linking globally (`npm link`), you can also run:
 
 ```bash
-ffmpeg -hide_banner -loglevel error -i some-recording.wav \
-  -ac 1 -ar 16000 -f s16le - \
-  | python3 tools/audio_cue_detector/detect_audio_stream.py /tmp/wow-audio-cues.json
+audio-cue-coach
 ```
 
-From macOS microphone or virtual audio device:
+Open:
+
+```text
+http://127.0.0.1:4173
+```
+
+Click `Enable Audio Context`, choose a browser-visible audio input, load local
+cue audio files and an optional player-authored strategy map, then start
+detection.
+
+## macOS Loopback Setup (BlackHole)
+
+Browsers cannot capture macOS output-only devices such as `External Headphones`
+directly. To hear game audio in the coach:
+
+1. Install [BlackHole](https://existential.audio/blackhole/) (2ch is enough).
+2. Open **Audio MIDI Setup** → create a **Multi-Output Device** that includes
+   your headphones/speakers **and** BlackHole.
+3. Set WoW (or system output) to the Multi-Output Device so you still hear
+   audio locally.
+4. In the browser app, select **BlackHole** as the audio input.
+
+On Windows, use a similar loopback/virtual cable device that appears in
+`navigator.mediaDevices.enumerateDevices()`.
+
+## Features
+
+### Live Coach
+
+- Real-time waveform and spectrum visualizers.
+- Mel-spectral fingerprint matching against your cue library.
+- Tunable threshold, minimum match window, per-cue refractory period, and
+  global action cooldown.
+- Optional advisory tones for `PUSH` / `PULL`.
+- **Record Example from Live** captures the last ~1.2 s of input while the
+  service is running.
+
+### Cue Library
+
+- View, play (when audio blob is available), relabel, and delete cues.
+- **Export Fingerprints** — JSON with labels, actions, and numeric features
+  only (no copyrighted audio).
+- **Import Fingerprints** — merge exported libraries from another machine.
+
+### Analysis Session
+
+Combine recorded fight audio with an exported `WoWCombatLog.txt` to rapidly
+build labeled training data:
+
+1. **Start Recording** (or upload session audio).
+2. Upload the matching combat log (normal or Advanced Combat Logging).
+3. Align log events to audio with the **Log offset** slider or **Suggest
+   Offset from Audio**.
+4. **Generate Proposals** — short segments around audible log events (casts,
+   auras, damage).
+5. **Review** each proposal: play, adjust boundaries, edit label/action, add
+   approximate direction notes, then **Confirm to Library**.
+
+Position hints from Advanced Combat Logging and stereo balance are marked
+**approximate** and optional. Nothing is added automatically — you confirm every
+example.
+
+## Allowed Inputs
+
+- User-provided audio clips.
+- Browser-captured audio that the user explicitly grants.
+- User-exported combat logs from `_retail_/Logs/WoWCombatLog.txt`.
+- User-authored strategy maps such as `actions.example.json`.
+- User notes, reviews, or manually exported data that do not require extracting
+  hidden game state or game assets.
+
+Do not datamine, reverse engineer, parse CASC assets, or bundle Blizzard/game
+audio. Fingerprints store only user-generated numeric features and labels.
+
+## Strategy Map
+
+The map matches filename or label substrings to advisory actions:
+
+```json
+{
+  "pressure": "PUSH",
+  "reset": "PULL",
+  "unclear": "NEUTRAL"
+}
+```
+
+Legacy `ATTACK` and `RUN` values are accepted as compatibility aliases and are
+normalized to `PUSH` and `PULL`.
+
+## Tuning for 2400 Solo Shuffle
+
+- Lower **Threshold** to catch quieter or less exact matches.
+- Raise **Threshold** to reduce false positives in noisy arena audio.
+- Lower **Min match** to reduce latency; raise it for stabler matches.
+- **Refractory** prevents the same cue from re-firing immediately.
+- **Global cooldown** spaces out repeated `PUSH` or `PULL` recommendations
+  across different cues.
+- Build a focused library: enemy cooldowns → `PULL`, go windows → `PUSH`,
+  ambiguous UI sounds → `NEUTRAL` or discard.
+
+## Limitations
+
+- Browser audio capture depends on OS loopback routing.
+- Matching is interpretable spectral similarity, not a full ML classifier.
+- Combat-log alignment is manual/semi-automatic; clock drift may require offset
+  tweaks.
+- Stereo/position metadata is supplementary and approximate.
+- Offline-capable after the page loads; no server required for normal use.
+
+## Development
+
+Syntax-check JavaScript:
 
 ```bash
-ffmpeg -f avfoundation -i ":0" -ac 1 -ar 16000 -f s16le - \
-  | python3 tools/audio_cue_detector/detect_audio_stream.py /tmp/wow-audio-cues.json
+node --check app.js
+node --check combat-log.js
+node --check bin/audio-cue-coach.js
 ```
 
-Use `ffmpeg -f avfoundation -list_devices true -i ""` to find the right input
-device. If the audio is captured on another machine/device, stream or pipe raw
-16 kHz mono s16le PCM into this detector with the same frame size.
-
-## Tuning
-
-- `--min-match-ms 64` reduces latency but increases false positives.
-- `--threshold 0.90` is stricter; `0.80` is looser.
-- `--global-cooldown-ms` suppresses tail re-detections from long resonant cues.
-- `--energy-gate` should be raised in a noisy room and lowered for quiet feeds.
-- For arena coaching, map labels to `RUN`, `ATTACK`, or `NEUTRAL` in an actions
-  JSON file rather than deriving instructions from hidden game state.
+See `agent.md` for repository boundaries, safety constraints, and agent workflow.
